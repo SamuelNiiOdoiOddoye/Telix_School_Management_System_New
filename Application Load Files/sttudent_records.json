@@ -1,0 +1,41 @@
+[
+    {
+        "ID": "0598eff0",
+        "Name": "emma",
+        "DOB": "2007-08-24",
+        "Class": "5",
+        "Fees": 1000,
+        "Gender": "Male",
+        "Address": "Dansoman Datus",
+        "Contact": "0242100877",
+        "MedicalInfo": "Asthmatic",
+        "Email Address": "oddoyeemmanuel750@gmail.com",
+        "Emergency Contact": "0242100866"
+    },
+    {
+        "SID": "62b39579",
+        "Name": "Samuel",
+        "DOB": "2004-11-15",
+        "Class": "6",
+        "Fees": 5000,
+        "Gender": "Male",
+        "Address": "Dansoman-Datus",
+        "Contact": "0242100866",
+        "MedicalInfo": "None",
+        "Email Address": "addoyesamuel@gmail.com",
+        "Emergency Contact": "0244322278"
+    },
+    {
+        "ID": "ed585290",
+        "Name": "ucn wv",
+        "DOB": "jvsnv",
+        "Class": "viwnv",
+        "Fees": 100,
+        "Gender": "Male",
+        "Address": "cvdvwvjo",
+        "Contact": "vjbw",
+        "MedicalInfo": "vwinv w",
+        "Email Address": "cwnvidv",
+        "Emergency Contact": "020102426"
+    }
+]

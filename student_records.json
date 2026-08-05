@@ -1,0 +1,41 @@
+[
+    {
+        "ID": "37899d42",
+        "Name": "",
+        "DOB": "",
+        "Class": "",
+        "Fees": 1,
+        "Gender": "MALE",
+        "Address": "TTCRYT",
+        "Contact": "6256",
+        "MedicalInfo": "NONE",
+        "Email Address": "GYBUN@GMAIL.COM",
+        "Emergency Contact": ""
+    },
+    {
+        "ID": "7911fc41",
+        "Name": "Nana Quansah",
+        "DOB": "2004-08-24",
+        "Class": "2",
+        "Fees": 200,
+        "Gender": "Male",
+        "Address": "Dansoman,Datus",
+        "Contact": "0594826262",
+        "MedicalInfo": "No Allergies",
+        "Email Address": "Samuelashong7@gmail.com",
+        "Emergency Contact": "0244601670"
+    },
+    {
+        "ID": "68eca387",
+        "Name": "Earl Kish Roberts",
+        "DOB": "2006-07-24",
+        "Class": "5",
+        "Fees": 520,
+        "Gender": "Male",
+        "Address": "Monrovia,Liberia",
+        "Contact": "0598662421",
+        "MedicalInfo": "No Allergies",
+        "Email Address": "earlkishRoberts21@gmail.com",
+        "Emergency Contact": "0244601670"
+    }
+]
