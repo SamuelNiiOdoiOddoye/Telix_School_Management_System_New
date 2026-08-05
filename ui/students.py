@@ -7,6 +7,12 @@ from PIL import Image, ImageTk
 import os
 import ctypes # To set the taskbar icon on windows
 import uuid # Importing the uuid module for generating unique student Ids
+from pathlib import Path
+
+BASE_DIR = Path("//Telix_School_Management_System_new//assets//images//telix_image.ico").resolve().parent
+DATA_DIR = BASE_DIR / "data"
+ASSETS_DIR = BASE_DIR / "assets"
+
 
 #Code to load student_records  
 def load_student_records(self):

@@ -37,5 +37,18 @@
         "MedicalInfo": "No Allergies",
         "Email Address": "earlkishRoberts21@gmail.com",
         "Emergency Contact": "0244601670"
+    },
+    {
+        "ID": "2a0f2e34",
+        "Name": "Telix Oddoye",
+        "DOB": "2004-11-15",
+        "Class": "6",
+        "Fees": 8000,
+        "Gender": "Male",
+        "Address": "Dansoman",
+        "Contact": "0242100866",
+        "MedicalInfo": "No Allergies",
+        "Email Address": "samuel.oddoye@icloud.com",
+        "Emergency Contact": "none"
     }
 ]

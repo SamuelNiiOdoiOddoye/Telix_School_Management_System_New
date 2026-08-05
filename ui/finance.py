@@ -6,6 +6,11 @@ from tkinter import simpledialog  # Importing simpledialog separately
 from PIL import Image, ImageTk
 import os
 import ctypes # To set the taskbar icon on windows 
+from pathlib import Path
+
+BASE_DIR = Path("//Telix_School_Management_System_new//assets//images//telix_image.ico").resolve().parent
+DATA_DIR = BASE_DIR / "data"
+ASSETS_DIR = BASE_DIR / "assets"
  
 #Code For the Profit/Loss module
 def check_profit_loss(self):
