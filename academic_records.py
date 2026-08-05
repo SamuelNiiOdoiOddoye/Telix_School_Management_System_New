@@ -202,3 +202,127 @@ def add_academic_records(self):
 def modify_academic_records(self):
         print("Hello Modify Academic Records")
     
+#code to view student academic records
+def view_academic_records(self):
+    # Check if the student academic records window is already open
+            if hasattr(self, "academic_records_window") and self.academic_records_window.winfo_exists():
+                # If it's open, bring it to focus and return
+                self.academic_records_window.lift()
+                return
+            
+            # Message to display if there's no student record
+            if not self.students:
+                messagebox.showinfo("No Records " , "No Academic Records found")
+                return
+            
+            # Create a new window to display student records
+            self.academic_records_window = tk.Toplevel(self.master)
+            self.academic_records_window.title("Academic Records")
+            self.academic_records_window.geometry("1000x800")  # Adjust the window size as needed
+    
+            # Create a frame to hold the student records
+            records_frame = tk.Frame(self.academic_records_window)
+            records_frame.pack(fill=tk.BOTH, expand=True)
+    
+            # Add a scrollbar to the frame
+            scrollbar = tk.Scrollbar(records_frame, orient=tk.VERTICAL)
+            scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+    
+            # Create a canvas to scroll the frame
+            canvas = tk.Canvas(records_frame, yscrollcommand=scrollbar.set)
+            canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    
+            # Configure the scrollbar to scroll the canvas
+            scrollbar.config(command=canvas.yview)
+    
+            # Create another frame inside the canvas to hold the student records
+            academic_frame = tk.Frame(canvas)
+            canvas.create_window((0, 0), window=academic_frame, anchor=tk.NW)
+    
+            # Function to update the scroll region when the size of the student frame changes
+            def on_frame_configure(event):
+                canvas.configure(scrollregion=canvas.bbox("all"))
+    
+            academic_frame.bind("<Configure>", on_frame_configure)
+            
+            # Initialize counters
+            index = 0 # controls grid row position
+            student_num = 1 # controls student numbering
+    
+            # Iterate over the academic records list and display their information
+            for student in self.students:
+                # Create a label for each student with an orderly number 
+                student_label = tk.Label(academic_frame, text=f"Student {student_num}:", font=("Arial", 12, "bold"))
+                student_label.grid(row=index, column=0, sticky="w")
+                index += 1 # Increment index for each new student
+                student_num += 1 # Increement student number for the next student
+    
+                # Display student information in the next rows
+                for key,value in student.items():
+                    info_label = tk.Label(academic_frame, text=f"{key}: {value}" , wraplength=600 , justify="left")
+                    info_label.grid(row=index, column=1, sticky="w")
+                    index += 1 # Move to the next row for each key-value pair
+    
+                # Update the scroll region to fit the contents of the student frame
+                academic_frame.update_idletasks()
+                canvas.config(scrollregion=canvas.bbox("all"))
+    
+#code for academic_records_widgets
+def academic_records_widgets(self):
+        # Define color variables
+        bg_color = "#808080"  # Light gray for background
+        text_color = "#333333"  # Dark gray for text
+        btn_bg_color = "#4CAF50"  # Green for buttons
+        btn_text_color = "white"  # White text for buttons
+
+        # set background color for the main window
+        self.master.configure(bg="#808080")
+        
+        #Title Label
+        self.lbl_title = tk.Label(self.master, text="Telix School Management System", font=("Arial", 16), bg=bg_color , fg="#FF5733")
+        self.lbl_title.pack()
+
+        #Add student button
+        self.btn_add_student = tk.Button(self.master, text="Add Student", command=self.add_student, bg="#FF5733", fg=btn_text_color)
+        self.btn_add_student.pack()
+
+        #Delete student button
+        self.btn_delete_student = tk.Button(self.master, text="Delete Student", command=self.delete_student, bg="#FF5733", fg=btn_text_color)
+        self.btn_delete_student.pack()
+        
+        #Modify student button
+        self.btn_modify_student = tk.Button(self.master, text="Modify Student", command=self.modify_student, bg="#FF5733", fg=btn_text_color)
+        self.btn_modify_student.pack()
+        
+        #Add Academic Records button
+        self.btn_add_academic_records = tk.Button(self.master, text="Add Academic Records", command=self.add_academic_records, bg="#FF5733" , fg=btn_text_color)
+        self.btn_add_academic_records.pack()
+        
+        #Modify academic records
+        self.btn_modify_academic_records = tk.Button(self.master, text="Modify Academic Records", command=self.modify_academic_records, bg="#FF5733" , fg=btn_text_color)
+        self.btn_modify_academic_records.pack()
+        
+        #View student records
+        self.btn_view_student_records = tk.Button(self.master, text="View Student Records", command=self.view_student_records, bg="#FF5733", fg=btn_text_color)
+        self.btn_view_student_records.pack()
+
+        #Add teacher button
+        self.btn_add_teacher = tk.Button(self.master, text="Add Teacher", command=self.add_teacher, bg="#FF5733", fg=btn_text_color)
+        self.btn_add_teacher.pack()
+        
+        #modify teacher button
+        self.btn_modify_teacher = tk.Button(self.master, text="Modify Teacher", command=self.modify_teacher, bg="#FF5733", fg=btn_text_color)
+        self.btn_modify_teacher.pack()
+        
+        #view teacher records button    
+        self.btn_view_teacher_records = tk.Button(self.master, text="View Teacher Records", command=self.view_teacher_records, bg="#FF5733", fg=btn_text_color)
+        self.btn_view_teacher_records.pack()
+        
+        #view records button 
+        self.btn_view_records = tk.Button(self.master, text="View Records", command=self.view_records, bg="#FF5733", fg=btn_text_color)
+        self.btn_view_records.pack()
+
+        #check profit/loss button
+        self.btn_check_profit = tk.Button(self.master, text="Check Profit/Loss", command=self.check_profit_loss, bg="#FF5733", fg=btn_text_color)
+        self.btn_check_profit.pack()
+        

@@ -17,14 +17,13 @@ def load_student_records(self):
             #If the file is doesn't exist, initialize an empty list
             self.students = []    
         
-        
 #Code to save student records    
 def save_student_records(self):
         with open("student_records.json","w") as file:
             json.dump(self.students, file , indent=4)                
 
 #Code to create widgets
-def create_widgets(self):
+def student_widgets(self):
         # Define color variables
         bg_color = "#808080"  # Light gray for background
         text_color = "#333333"  # Dark gray for text
@@ -81,7 +80,6 @@ def create_widgets(self):
         #check profit/loss button
         self.btn_check_profit = tk.Button(self.master, text="Check Profit/Loss", command=self.check_profit_loss, bg="#FF5733", fg=btn_text_color)
         self.btn_check_profit.pack()
-
 
 #Code to add a new student record
 def add_student(self):
