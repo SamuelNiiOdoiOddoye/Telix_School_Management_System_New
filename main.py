@@ -14,11 +14,11 @@ root = tk.Tk()
 class SchoolManagementSystem:
     def __init__(self, master):
         self.master = master
-        self.master.title("School Management System")
+        self.master.title("Telix School Management System")
         self.master.geometry("600x400")
         
     # Load the .png icon image and convert it to PhotoImage for the title bar
-        icon_image = Image.open("C:/Users/addoy/Documents/codes/Python/God's grace system/management system for god/images/Badgeimage.png")
+        icon_image = Image.open("\\Telix_School_Management_System_new\\assets\\images\\telix_image.ico")
         icon_photo = ImageTk.PhotoImage(icon_image)
 
     # Set the application icon for the title bar
@@ -27,9 +27,9 @@ class SchoolManagementSystem:
     # Set the icon for the taskbar on windows
         if os.name == 'nt' : #check if running windows
             #Convert the image to .ico format (you can use the actual .ico file here if available)
-            icon_path = "C:/Users/addoy/Documents/codes/Python/God's grace system/management system for god/images/Badgeimage.ico"
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("telixinc.God'sgraceschmngapp")
-        self.master.wm_iconbitmap("C:/Users/addoy/Documents/codes/Python/God's grace system/management system for god/images/Badgeimage.ico")   
+            icon_path = "\\Telix_School_Management_System_new\\assets\\images\\telix_image.ico"
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("telixinc.SMSapp")
+        self.master.wm_iconbitmap("\\Telix_School_Management_System_new\\assets\\images\\telix_image.ico")   
         
         self.students = []
         self.teachers = []
@@ -69,7 +69,7 @@ class SchoolManagementSystem:
         self.master.configure(bg="#808080")
         
         #Title Label
-        self.lbl_title = tk.Label(self.master, text="School Management System", font=("Arial", 16), bg=bg_color , fg="#FF5733")
+        self.lbl_title = tk.Label(self.master, text="Telix School Management System", font=("Arial", 16), bg=bg_color , fg="#FF5733")
         self.lbl_title.pack()
 
         #Add student button
