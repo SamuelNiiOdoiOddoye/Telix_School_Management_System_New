@@ -7,6 +7,7 @@ from PIL import Image, ImageTk
 import os
 import ctypes # To set the taskbar icon on windows
 import uuid
+from pathlib import Path
 
 from students import save_student_records # Importing the uuid module for generating unique student Ids
 
@@ -17,11 +18,14 @@ class SchoolManagementSystem:
     def __init__(self, master):
         self.master = master
         self.master.title("Telix School Management System")
+        BASE_DIR = Path(__file__).resolve().parent
+        Telix_Icon_Path = BASE_DIR / "assets" / "images" / "telix_image.ico"
         self.master.geometry("600x400")
         
     # Load the .png icon image and convert it to PhotoImage for the title bar
-        icon_image = Image.open("\\Telix_School_Management_System_new\\assets\\images\\telix_image.ico")
+        icon_image = Image.open(Telix_Icon_Path)
         icon_photo = ImageTk.PhotoImage(icon_image)
+        
 
     # Set the application icon for the title bar
         self.master.iconphoto(True, icon_photo) 
@@ -29,9 +33,9 @@ class SchoolManagementSystem:
     # Set the icon for the taskbar on windows
         if os.name == 'nt' : #check if running windows
             #Convert the image to .ico format (you can use the actual .ico file here if available)
-            icon_path = "\\Telix_School_Management_System_new\\assets\\images\\telix_image.ico"
+            icon_path = Telix_Icon_Path
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("telixinc.SMSapp")
-        self.master.wm_iconbitmap("\\Telix_School_Management_System_new\\assets\\images\\telix_image.ico")   
+        self.master.wm_iconbitmap(Telix_Icon_Path)  # Set the icon for the taskbar on Windows
         
         self.students = []
         self.teachers = []
@@ -40,8 +44,6 @@ class SchoolManagementSystem:
         
         #load existing student records from file
         self.load_student_records()
-        
-       
         self.create_widgets()
 
     #code to import student functions from students.py
