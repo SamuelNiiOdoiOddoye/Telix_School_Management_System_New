@@ -1,248 +1,137 @@
-# Import statements
-import json
-import tkinter as tk
-from tkinter import messagebox
-from tkinter import simpledialog  # Importing simpledialog separately
-from PIL import Image, ImageTk
-import os
-import ctypes # To set the taskbar icon on windows
-import uuid # Importing the uuid module for generating unique student Ids
-from pathlib import Path
+"""Student record operations for the Telix School Management System."""
 
-BASE_DIR = Path("//Telix_School_Management_System_new//assets//images//telix_image.ico").resolve().parent
-DATA_DIR = BASE_DIR / "data"
-ASSETS_DIR = BASE_DIR / "assets"
+from __future__ import annotations
+
+from typing import Any
+
+from config import STUDENT_FILE
+from database import JsonStore
+from search import filter_by_class, find_by_id
+from utils import (
+    ValidationError,
+    clean_text,
+    require_fields,
+    validate_amount,
+    validate_date_of_birth,
+    validate_email,
+    validate_phone,
+)
 
 
-#Code to load student_records  
-def load_student_records(self):
-        try:
-            with open("student_records.json","r") as file:
-                self.students = json.load(file)
-        except FileNotFoundError:
-            #If the file is doesn't exist, initialize an empty list
-            self.students = []    
-        
-#Code to save student records    
-def save_student_records(self):
-        with open("student_records.json","w") as file:
-            json.dump(self.students, file , indent=4)                
+STUDENT_FIELD_LABELS = {
+    "student_id": "Student ID",
+    "name": "Student name",
+    "date_of_birth": "Date of birth",
+    "class_name": "Class",
+    "fees": "School fees",
+    "gender": "Gender",
+    "address": "Address",
+    "phone": "Student phone number",
+    "email": "Email address",
+    "medical_info": "Medical information",
+    "parent_name": "Parent or guardian name",
+    "parent_phone": "Parent or guardian phone number",
+}
 
-#Code to create widgets
-def student_widgets(self):
-        # Define color variables
-        bg_color = "#808080"  # Light gray for background
-        text_color = "#333333"  # Dark gray for text
-        btn_bg_color = "#4CAF50"  # Green for buttons
-        btn_text_color = "white"  # White text for buttons
 
-        # set background color for the main window
-        self.master.configure(bg="#808080")
-        
-        #Title Label
-        self.lbl_title = tk.Label(self.master, text="School Management System", font=("Arial", 16), bg=bg_color , fg="#FF5733")
-        self.lbl_title.pack()
+def _first_value(record: dict[str, Any], *keys: str, default: Any = "") -> Any:
+    for key in keys:
+        value = record.get(key)
+        if value not in (None, ""):
+            return value
+    return default
 
-        #Add student button
-        self.btn_add_student = tk.Button(self.master, text="Add Student", command=self.add_student, bg="#FF5733", fg=btn_text_color)
-        self.btn_add_student.pack()
 
-        #Delete student button
-        self.btn_delete_student = tk.Button(self.master, text="Delete Student", command=self.delete_student, bg="#FF5733", fg=btn_text_color)
-        self.btn_delete_student.pack()
-        
-        #Modify student button
-        self.btn_modify_student = tk.Button(self.master, text="Modify Student", command=self.modify_student, bg="#FF5733", fg=btn_text_color)
-        self.btn_modify_student.pack()
-        
-        #Add Academic Records button
-        self.btn_add_academic_records = tk.Button(self.master, text="Add Academic Records", command=self.add_academic_records, bg="#FF5733" , fg=btn_text_color)
-        self.btn_add_academic_records.pack()
-        
-        #Modify academic records
-        self.btn_modify_academic_records = tk.Button(self.master, text="Modify Academic Records", command=self.modify_academic_records, bg="#FF5733" , fg=btn_text_color)
-        self.btn_modify_academic_records.pack()
-        
-        #View student records
-        self.btn_view_student_records = tk.Button(self.master, text="View Student Records", command=self.view_student_records, bg="#FF5733", fg=btn_text_color)
-        self.btn_view_student_records.pack()
+class StudentService:
+    def __init__(self, store: JsonStore | None = None) -> None:
+        self.store = store or JsonStore(STUDENT_FILE)
 
-        #Add teacher button
-        self.btn_add_teacher = tk.Button(self.master, text="Add Teacher", command=self.add_teacher, bg="#FF5733", fg=btn_text_color)
-        self.btn_add_teacher.pack()
-        
-        #modify teacher button
-        self.btn_modify_teacher = tk.Button(self.master, text="Modify Teacher", command=self.modify_teacher, bg="#FF5733", fg=btn_text_color)
-        self.btn_modify_teacher.pack()
-        
-        #view teacher records button    
-        self.btn_view_teacher_records = tk.Button(self.master, text="View Teacher Records", command=self.view_teacher_records, bg="#FF5733", fg=btn_text_color)
-        self.btn_view_teacher_records.pack()
-        
-        #view records button 
-        self.btn_view_records = tk.Button(self.master, text="View Records", command=self.view_records, bg="#FF5733", fg=btn_text_color)
-        self.btn_view_records.pack()
+    def list(self) -> list[dict[str, Any]]:
+        return [self._normalise(record) for record in self.store.load() if isinstance(record, dict)]
 
-        #check profit/loss button
-        self.btn_check_profit = tk.Button(self.master, text="Check Profit/Loss", command=self.check_profit_loss, bg="#FF5733", fg=btn_text_color)
-        self.btn_check_profit.pack()
+    def get(self, student_id: str) -> dict[str, Any] | None:
+        return find_by_id(self.list(), "student_id", student_id)
 
-#Code to add a new student record
-def add_student(self):
-        #Gather Student information
-        #if it's open, bring it to focus
-        if hasattr(self, "add_student_window") and self.add_student_window.winfo_exists():
-            self.add_student_records_window.lift()
-            
-        student_id = str(uuid.uuid4())[:8] # Generate unique student ID
-        student_name = simpledialog.askstring("Add Student", "Enter student's name")
-        if student_name is not None: #Check if input is None
-            student_dob = simpledialog.askstring("Add Student ", "Enter student's date of birth (YYYY-MM-DD)")
-            if student_dob is not None:
-                student_class = simpledialog.askstring("Add Student ", "Enter students class/grade: ")
-                if student_class is not None:
-                    student_fees = simpledialog.askinteger("Add Student ", "Enter student's school fees")
-                    if student_fees is not None:
-                        student_gender = simpledialog.askstring("Add Student "," Enter student gender")
-                        if student_gender is not None:
-                            student_address = simpledialog.askstring("Add Student ", "Enter student's address")
-                            if student_address is not None:
-                                student_contact = simpledialog.askstring("Ask Student ", "Enter student's contact info")
-                                if student_contact is not None:
-                                    student_medical_info = simpledialog.askstring("Ask Student ", "Enter students medical info")
-                                    student_email_address = simpledialog.askstring("Ask Student ", "Enter students email address")
-                                    if student_email_address is not None:
-                                        student_emergency_contact = simpledialog.askstring("Ask Student", "Enter student's emergency contact")
-        
-        # Create student dictionary
-        student = {
-            "ID" : student_id,
-            "Name" : student_name,
-            "DOB" : student_dob,
-            "Class" : student_class,
-            "Fees" : student_fees,
-            "Gender" : student_gender,
-            "Address" : student_address,
-            "Contact" : student_contact,
-            "MedicalInfo" : student_medical_info,
-            "Email Address" : student_email_address,
-            "Emergency Contact" : student_emergency_contact
+    def add(self, values: dict[str, object]) -> dict[str, Any]:
+        student = self._prepare(values)
+        records = self.list()
+        if find_by_id(records, "student_id", student["student_id"]):
+            raise ValidationError("That Student ID already exists. Use a unique Student ID.")
+        records.append(student)
+        self.store.save(records)
+        return student
+
+    def update(self, existing_student_id: str, values: dict[str, object]) -> dict[str, Any]:
+        student = self._prepare(values)
+        if student["student_id"].casefold() != existing_student_id.strip().casefold():
+            raise ValidationError("Student ID cannot be changed. Create a new student record instead.")
+
+        records = self.list()
+        for index, record in enumerate(records):
+            if record["student_id"].casefold() == existing_student_id.strip().casefold():
+                records[index] = student
+                self.store.save(records)
+                return student
+        raise ValidationError("Student record not found. Search by Student ID first.")
+
+    def delete(self, student_id: str) -> dict[str, Any]:
+        records = self.list()
+        for index, record in enumerate(records):
+            if record["student_id"].casefold() == student_id.strip().casefold():
+                deleted = records.pop(index)
+                self.store.save(records)
+                return deleted
+        raise ValidationError("Student record not found. Search by Student ID first.")
+
+    def by_class(self, class_name: str) -> list[dict[str, Any]]:
+        return filter_by_class(self.list(), class_name)
+
+    def classes(self) -> list[str]:
+        return sorted({record["class_name"] for record in self.list() if record["class_name"]})
+
+    def _prepare(self, values: dict[str, object]) -> dict[str, Any]:
+        required_values = {
+            field_name: values.get(field_name, "") for field_name in STUDENT_FIELD_LABELS
         }
-        
-        #Add student to the list
-        self.students.append(student)
-        
-        #save student records to file
-        self.save_student_records()
-        
-        #show success message
-        messagebox.showinfo("Success", f"Student {student_name} added successfully with ID {student_id}.")
-        
-        pass
+        cleaned = require_fields(required_values, STUDENT_FIELD_LABELS)
+        return {
+            "student_id": cleaned["student_id"].upper(),
+            "name": cleaned["name"],
+            "date_of_birth": validate_date_of_birth(
+                cleaned["date_of_birth"], 3, 25, "Student date of birth"
+            ),
+            "class_name": cleaned["class_name"],
+            "fees": validate_amount(cleaned["fees"], "School fees"),
+            "gender": cleaned["gender"],
+            "address": cleaned["address"],
+            "phone": validate_phone(cleaned["phone"], "Student phone number"),
+            "email": validate_email(cleaned["email"]),
+            "medical_info": cleaned["medical_info"],
+            "parent_name": cleaned["parent_name"],
+            "parent_phone": validate_phone(
+                cleaned["parent_phone"], "Parent or guardian phone number"
+            ),
+        }
 
-#Code to delete a student record
-def delete_student(self):
-        student_name = simpledialog.askstring("Delete Student", "Enter Student's name to delete:")
-        if student_name:
-            deleted = False
-            for student in self.students[:]:
-                if student ["Name"] == student_name:
-                    self.students.remove(student)
-                    deleted = True
-            if deleted:
-                messagebox.showinfo("Success", f"All records of student {student_name} have been deleted.")
-            else:
-                student_id = simpledialog.askstring("Delete Student", "Enter Student's ID to delete:")
-                if student_id:
-                    deleted = False
-                    for student in self.students[:]:
-                        if student["ID"] == student_id:
-                           self.students.remove(student)
-                           deleted = True
-                    if deleted :
-                        messagebox.showinfo("Success", f"All records of student {student_id} have been deleted.")
-                    else:
-                        messagebox.showerror("Error", f"Student '{student_name}' not found.")            
-    
-#Code to modify student records
-def modify_student(self):
-        student_name = simpledialog.askstring("Modify Student","Enter student's name to modify:")
-        if student_name:
-           for student in self.students:
-               if student["Name"] == student_name:
-                #Allow modification of student information
-                student["Name"] = simpledialog.askstring("Modify Student", "Enter student's new name:", initialvalue=student["Name"])
-                student["DOB"] = simpledialog.askstring("Modify Student", "Enter student's new date of birth (YYYY-MM-DD):", initialvalue=student["DOB"])
-                student["Class"] = simpledialog.askstring("Modify Student", "Enter student's new class/grade:", initialvalue=student["Class"])
-                student["Fees"] = simpledialog.askinteger("Modify Student", "Enter student's new fees:", initialvalue=student["Fees"])
-                student["Gender"] = simpledialog.askstring("Modify Student", "Enter student's new gender:", initialvalue=student["Gender"])
-                student["Address"] = simpledialog.askstring("Modify Student", "Enter student's new address:", initialvalue=student["Address"])
-                messagebox.showinfo("Success", f"Information of student {student_name} has been modified.")
-                return
-        messagebox.showerror("Error", f"Student '{student_name}' not found.")    
-
-#Code to view student records
-def view_student_records(self):
-        # Check if the student records window is already open
-        if hasattr(self, "student_records_window") and self.student_records_window.winfo_exists():
-            # If it's open, bring it to focus and return
-            self.student_records_window.lift()
-            return
-        
-        # Message to display if there's no student record
-        if not self.students:
-            messagebox.showinfo("No Records " , "No Student Records found")
-            return
-        
-        # Create a new window to display student records
-        self.student_records_window = tk.Toplevel(self.master)
-        self.student_records_window.title("Student Records")
-        self.student_records_window.geometry("1000x800")  # Adjust the window size as needed
-
-        # Create a frame to hold the student records
-        records_frame = tk.Frame(self.student_records_window)
-        records_frame.pack(fill=tk.BOTH, expand=True)
-
-        # Add a scrollbar to the frame
-        scrollbar = tk.Scrollbar(records_frame, orient=tk.VERTICAL)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-        # Create a canvas to scroll the frame
-        canvas = tk.Canvas(records_frame, yscrollcommand=scrollbar.set)
-        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-        # Configure the scrollbar to scroll the canvas
-        scrollbar.config(command=canvas.yview)
-
-        # Create another frame inside the canvas to hold the student records
-        student_frame = tk.Frame(canvas)
-        canvas.create_window((0, 0), window=student_frame, anchor=tk.NW)
-
-        # Function to update the scroll region when the size of the student frame changes
-        def on_frame_configure(event):
-            canvas.configure(scrollregion=canvas.bbox("all"))
-
-        student_frame.bind("<Configure>", on_frame_configure)
-        
-        # Initialize counters
-        index = 0 # controls grid row position
-        student_num = 1 # controls student numbering
-
-        # Iterate over the students list and display their information
-        for student in self.students:
-            # Create a label for each student with an orderly number 
-            student_label = tk.Label(student_frame, text=f"Student {student_num}:", font=("Arial", 12, "bold"))
-            student_label.grid(row=index, column=0, sticky="w")
-            index += 1 # Increment index for each new student
-            student_num += 1 # Increement student number for the next student
-
-            # Display student information in the next rows
-            for key,value in student.items():
-                info_label = tk.Label(student_frame, text=f"{key}: {value}" , wraplength=600 , justify="left")
-                info_label.grid(row=index, column=1, sticky="w")
-                index += 1 # Move to the next row for each key-value pair
-
-            # Update the scroll region to fit the contents of the student frame
-            student_frame.update_idletasks()
-            canvas.config(scrollregion=canvas.bbox("all"))
-
+    @staticmethod
+    def _normalise(record: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "student_id": clean_text(_first_value(record, "student_id", "ID")),
+            "name": clean_text(_first_value(record, "name", "Name")),
+            "date_of_birth": clean_text(_first_value(record, "date_of_birth", "DOB")),
+            "class_name": clean_text(_first_value(record, "class_name", "Class")),
+            "fees": _first_value(record, "fees", "Fees", default=0),
+            "gender": clean_text(_first_value(record, "gender", "Gender")),
+            "address": clean_text(_first_value(record, "address", "Address")),
+            "phone": clean_text(_first_value(record, "phone", "Contact")),
+            "email": clean_text(_first_value(record, "email", "Email Address")),
+            "medical_info": clean_text(
+                _first_value(record, "medical_info", "MedicalInfo", default="Not provided")
+            ),
+            "parent_name": clean_text(
+                _first_value(record, "parent_name", "Parent Name", default="Not provided")
+            ),
+            "parent_phone": clean_text(
+                _first_value(record, "parent_phone", "Parent Phone", "Emergency Contact")
+            ),
+        }

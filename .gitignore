@@ -1,0 +1,15 @@
+# Sensitive local school records and their automatic backups
+/student_records.json
+/teacher_records.json
+/academic_records.json
+/*.backup.json
+
+# Python runtime files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Local environments and editor settings
+.venv/
+venv/
+.vscode/
