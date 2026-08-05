@@ -7,6 +7,9 @@ from PIL import Image, ImageTk
 import os
 import ctypes # To set the taskbar icon on windows
 import uuid # Importing the uuid module for generating unique student Ids
+from pathlib import Path
+
+
 
 #Code to add Student Academic Records
 def add_academic_records(self):
