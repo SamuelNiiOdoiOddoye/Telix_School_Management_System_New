@@ -1,4 +1,8 @@
+from pathlib import Path
 
+BASE_DIR = Path("//Telix_School_Management_System_new//assets//images//telix_image.ico").resolve().parent
+DATA_DIR = BASE_DIR / "data"
+ASSETS_DIR = BASE_DIR / "assets"
 
 #create database widget 
 def database_widgets(self):

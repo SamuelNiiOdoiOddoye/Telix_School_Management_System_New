@@ -7,8 +7,8 @@ from PIL import Image, ImageTk
 import os
 import ctypes # To set the taskbar icon on windows
 import uuid
-from pathlib import Path
 
+from config import TELIX_ICON_PATH
 from students import save_student_records # Importing the uuid module for generating unique student Ids
 
 # Create the main window
@@ -18,24 +18,19 @@ class SchoolManagementSystem:
     def __init__(self, master):
         self.master = master
         self.master.title("Telix School Management System")
-        BASE_DIR = Path(__file__).resolve().parent
-        Telix_Icon_Path = BASE_DIR / "assets" / "images" / "telix_image.ico"
         self.master.geometry("600x400")
         
-    # Load the .png icon image and convert it to PhotoImage for the title bar
-        icon_image = Image.open(Telix_Icon_Path)
-        icon_photo = ImageTk.PhotoImage(icon_image)
+        icon_image = Image.open(TELIX_ICON_PATH)
+        self.icon_photo = ImageTk.PhotoImage(icon_image)
         
 
     # Set the application icon for the title bar
-        self.master.iconphoto(True, icon_photo) 
+        self.master.iconphoto(True, self.icon_photo)
         
     # Set the icon for the taskbar on windows
         if os.name == 'nt' : #check if running windows
-            #Convert the image to .ico format (you can use the actual .ico file here if available)
-            icon_path = Telix_Icon_Path
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("telixinc.SMSapp")
-        self.master.wm_iconbitmap(Telix_Icon_Path)  # Set the icon for the taskbar on Windows
+            self.master.wm_iconbitmap(str(TELIX_ICON_PATH))
         
         self.students = []
         self.teachers = []
@@ -130,7 +125,7 @@ class SchoolManagementSystem:
         self.btn_view_teacher_records.pack()
         
         #view records button 
-        self.btn_view_records = tk.Button(self.master, text="View Records", command=self.view_records, bg="#FF5733", fg=btn_text_color)
+        self.btn_view_records = tk.Button(self.master, text="View Academic Records", command=self.view_academic_records, bg="#FF5733", fg=btn_text_color)
         self.btn_view_records.pack()
 
         #check profit/loss button
