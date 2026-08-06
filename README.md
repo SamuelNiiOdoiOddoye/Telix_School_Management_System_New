@@ -106,3 +106,52 @@ Telix_School_Management_System_new/
 - Fee payment and expense transaction ledgers
 - Export reports to PDF and Excel
 - Automated tests and continuous integration
+
+Contributing
+
+Contributions are welcome and appreciated.
+
+If you would like to improve this project by fixing bugs, adding features, improving documentation, or optimizing performance, feel free to fork the repository and submit a Pull Request.
+
+Before contributing, please:
+
+* Open an issue to discuss significant changes.
+* Follow the project’s coding style.
+* Write clear commit messages.
+* Ensure new features do not break existing functionality.
+
+All contributions will be reviewed before being merged.
+
+⸻
+
+Commercial Use
+
+This repository is intended for educational, research, and collaborative software development.
+
+If you or your organization wish to use this project as part of a commercial product or service, please contact the project owner before doing so to discuss commercial licensing options.
+
+Commercial licensing terms may differ from the permissions granted for community contributions.
+
+⸻
+
+Intellectual Property
+
+Copyright © 2026 Samuel Oddoye.
+
+All original source code, documentation, designs, and related assets remain the intellectual property of the project owner unless otherwise stated.
+
+Contributors retain copyright to their own original contributions while granting the project owner the necessary rights to review, modify, merge, and distribute those contributions as part of this project.
+
+⸻
+
+Future Commercial Licensing
+
+As this project evolves, a commercial licensing model may be introduced for organizations wishing to build commercial products or services based on this software.
+
+If such a model is adopted, contributors who have made significant accepted contributions may be invited to participate under separate written agreements. Participation, eligibility, and any revenue-sharing arrangements will be determined on a case-by-case basis and are not implied by contributing to this repository.
+
+⸻
+
+Contact
+
+For questions, collaboration opportunities, commercial licensing, or business partnerships, please open an issue in this repository or contact the project owner through GitHub.
