@@ -1,6 +1,6 @@
 # Telix School Management System
 
-Telix is a desktop school-records application built with Python and Tkinter. It provides a single-user workspace for maintaining student, teacher, and academic records, viewing linked reports, and calculating a simple expected income summary.
+Telix is a local desktop school-management application built with Python and Tkinter. A local Super Admin can maintain student, teacher, academic, attendance, and finance records, review linked reports, and export visible report data.
 
 > **Project status:** This is a local desktop application backed by JSON files. It is not yet a multi-user or hosted school-management platform. Review [Known limitations](#known-limitations-and-roadmap) and [Data handling and privacy](#data-handling-and-privacy) before using real student information.
 
@@ -75,6 +75,8 @@ does not protect files from someone with direct access to the computer.
 - Associates each score with an existing student by Student ID.
 - Stores subject, whole-number score from 0 to 100, term, and academic year.
 - Searches for a student by ID and displays that student's linked academic records.
+- Shows score counts and average scores grouped by saved academic-year and
+  term labels, preserving period names when a catalog is later renamed.
 - Prevents duplicate subject entries for the same student, term, and academic year.
 - Removes a student's linked academic records when that student is deleted.
 
@@ -84,6 +86,8 @@ does not protect files from someone with direct access to the computer.
   from the **Academic Setup** tab.
 - Create and maintain student enrollments linked by explicit student, class,
   and academic-year IDs.
+- Assign teachers to managed subjects by academic year. Assignments prevent
+  deletion of referenced teachers, subjects, or academic years.
 - Keep enrollment history through effective start/end dates; transfers within
   an academic year must not overlap.
 - Validate term/enrollment dates against the selected academic year and prevent
@@ -123,14 +127,17 @@ records; the existing one-score-per-subject/term/year records remain supported.
 
 Attendance, explicit transfer/promotion, withdrawal, re-enrollment, and student
 status are available as separate workflows. Status is Active, Inactive, or
-Withdrawn; enrollment history remains effective-dated. A consolidated lifecycle
-timeline/report and teacher/subject assignments are not yet available.
+Withdrawn; enrollment history remains effective-dated. A consolidated
+student-status and enrollment lifecycle timeline/report is not yet available.
 
 ### Reports
 
 - Shows student and parent or guardian contact details.
 - Shows teacher contact and emergency-contact details.
-- Shows academic records alongside the related student's name and class.
+- Shows academic records alongside the student's name and explicitly labels
+  the class as current, rather than implying it was the historical class.
+- The Academic Records workspace shows per-period subject counts and average
+  scores for the searched student.
 - Shows attendance history with counts and attendance percentage.
 - Shows payment and expense entries with a financial summary.
 - Filters students by ID, status, and class; teachers by ID/name; academic and
@@ -177,16 +184,18 @@ academic-period allocations, payment receipts, or audit trail.
 4. Use the exact-ID search controls to find a student or teacher. The Students
    tab supports class and lifecycle-status filters.
 5. In **Academic Setup**, create the classes, academic years, subjects, and terms your school uses. Add a student enrollment by selecting its student, class, and year and setting its effective start date.
-6. In **Academic Records**, search for and confirm a student, select a managed subject, term, and academic year, enter a score, then choose **Add Score**. Existing entries can be selected and updated or deleted.
-7. In **Assessments**, configure grading components and bands for an academic year or term, enter component scores, and calculate the grade once all components are recorded.
-8. In **Academic Setup → Enrollments**, use **Transfer / Promote** to close the current enrollment and create its successor, or record a withdrawal effective on the selected date.
-9. In **Attendance**, choose an enrolled student, date, and status to record attendance. Filter history by date, student, or class; select a record to update or delete it.
-10. In **Students**, set a student's status to Active, Inactive, or Withdrawn.
+6. In **Academic Setup → Teacher Assignments**, assign a teacher to a
+   managed subject for an academic year.
+7. In **Academic Records**, search for and confirm a student, select a managed subject, term, and academic year, enter a score, then choose **Add Score**. Existing entries can be selected and updated or deleted; searching a student shows saved per-period score averages.
+8. In **Assessments**, configure grading components and bands for an academic year or term, enter component scores, and calculate the grade once all components are recorded.
+9. In **Academic Setup → Enrollments**, use **Transfer / Promote** to close the current enrollment and create its successor, or record a withdrawal effective on the selected date.
+10. In **Attendance**, choose an enrolled student, date, and status to record attendance. Filter history by date, student, or class; select a record to update or delete it.
+11. In **Students**, set a student's status to Active, Inactive, or Withdrawn.
     Use the status filter and confirm reports show the selected population.
-11. Open **Reports** to view linked student, teacher, academic, assessment,
+12. Open **Reports** to view linked student, teacher, academic, assessment,
     attendance, and finance data. Use the report filters for student, teacher,
     academic text, attendance status and dates, and finance category and dates.
-12. In **Finance**, record payments and school expenses, then review expected
+13. In **Finance**, record payments and school expenses, then review expected
     income, received income, outstanding balances, student credit, expenses,
     and profit/loss.
 
@@ -293,6 +302,7 @@ The application reads and writes these files in the project root:
 | `academic_years.json` | Academic-year definitions |
 | `terms.json` | Terms linked to academic years |
 | `enrollments.json` | Effective-dated student class enrollments |
+| `teacher_assignments.json` | Teacher, subject, and academic-year assignments |
 | `attendance_records.json` | Student attendance linked to the effective enrollment |
 | `assessment_records.json` | Per-student assessment component scores |
 | `grading_profiles.json` | Grading components, weights, and grade bands |
@@ -430,8 +440,6 @@ enrollment history. Automated UI checks cover startup and report rendering,
 but full GUI acceptance remains outstanding.
 Remaining:
 
-- Integration of the managed subject, term, and academic-year catalogs with
-  academic records rather than relying on free-text values.
 - Complete validation, meaningful errors, persistence, UI integration, and
   tests across all core records and their relationships.
 
@@ -443,8 +451,8 @@ can be linked to managed subjects, terms, and academic years, while legacy
 records retain their text-based compatibility. Configurable assessment
 components, year/term grading profiles, weighted or unweighted grade
 calculations, and assessment reporting are implemented. Teacher/subject
-assignments, academic summaries, and broader academic history/reporting remain
-outstanding.
+assignments and per-period academic summaries are implemented. Broader
+academic history/reporting and phase-wide acceptance remain outstanding.
 
 This phase remains local desktop V1 work. It does not add V2 multi-tenancy,
 APIs, or mobile apps.
@@ -457,8 +465,8 @@ Explicit transfer/promotion and withdrawal actions preserve effective-dated
 enrollment history, and re-enrollment can be added without overlap. Student
 status (Active, Inactive, Withdrawn), status filtering, duplicate attendance
 prevention, filters, summaries, and student-removal cleanup are implemented.
-The consolidated lifecycle timeline, teacher/subject assignments, and full
-phase acceptance remain outstanding.
+The consolidated lifecycle timeline and full phase acceptance remain
+outstanding.
 
 #### V1.4 — Finance
 
@@ -476,7 +484,8 @@ period, audit history, and phase-wide acceptance remain outstanding.
 academic, assessment, attendance, payment, and expense data; student, teacher,
 academic, attendance, and finance filters; empty-state feedback; CSV export of
 displayed rows; and dashboard financial statistics. Academic performance
-summaries and complete phase-wide GUI acceptance remain outstanding.
+summaries are available in Academic Records. Complete phase-wide GUI
+acceptance remains outstanding.
 
 #### V1.6 — UX/UI completion
 
@@ -492,11 +501,12 @@ components over duplicated behavior.
 **Status: In progress.** CI currently runs tests, Ruff lint and format checks,
 and mypy on Python 3.10 and 3.13. Local automated tests cover authentication,
 core helpers, JSON storage, normalization, record services, finance
-calculations, selected workflows, and report/login UI smoke tests. The latest
-CI checks reported on the open PR failed; their logs were unavailable during
-this verification. The remaining work includes resolving/confirming CI status,
-broader failure-path and workflow coverage, backup/restore and financial edge
-cases, full desktop acceptance, and clean-install verification.
+calculations, selected workflows, and report/login UI smoke tests. Local
+quality gates do not substitute for a confirmed GitHub Actions run; a
+repository execution-quota or subscription restriction must be distinguished
+from an application-code failure. The remaining work includes confirming
+remote CI when available, additional lifecycle and failure-path acceptance,
+full desktop acceptance, Python 3.10 execution, and clean-install verification.
 
 A phase is complete only when its behavior, UI workflow, validation,
 persistence, error handling, relevant tests, CI, lint, format, type checks,
@@ -517,8 +527,9 @@ is claimed by this roadmap.
 V1 is not complete until the application reliably demonstrates secure local
 Super Admin login/logout/bootstrap; core student and teacher records; managed
 classes, subjects, years, terms and enrollment; academics and student history;
-attendance and lifecycle workflows; fees, charges, payments, balances,
-expenses and accurate summaries; useful reports; coherent UI behavior;
+attendance and lifecycle workflows; per-student expected fees, payments,
+outstanding/credit balances, expenses, and accurate cash summaries; useful
+reports; coherent UI behavior;
 automated unit, service, repository and workflow tests; practical GUI
 acceptance coverage; passing CI/lint/format/type checks; and documentation
 consistent with the implementation.
@@ -569,17 +580,18 @@ be represented as current V1 features.
   or prevent access by a person who can read the account file or application
   source on the same computer.
 - Local JSON persistence has no database constraints, inter-process locking,
-  or transaction spanning multiple files. Student deletion updates academic
-  and student records separately and may be interrupted partway through.
+  or transaction spanning multiple files. Student deletion updates linked
+  record files sequentially and may be interrupted partway through; payment
+  history blocks student deletion.
 - Each list operation reads its full JSON file. Backups are made during saves,
   but there is no backup/restore management UI.
 - Finance tracks student payments and categorized expenses, but fees are still
   a single expected amount per student. There are no invoices, payment
   allocations by academic period, refunds, or financial audit history.
 - Attendance and enrollment transitions have basic workflows but do not yet
-  provide a consolidated student lifecycle timeline. Teacher/subject
-  assignments remain planned; other features are not current unless stated
-  above.
+  provide a consolidated student lifecycle timeline. Assignment history is
+  linked to academic years, but class-specific timetables and an audit trail
+  for assignment changes are not implemented.
 - The app provides no encryption at rest or audit history. Keep local record
   files private, excluded from Git, and protected by operating-system account
   security.

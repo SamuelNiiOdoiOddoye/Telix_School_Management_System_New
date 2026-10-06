@@ -31,7 +31,7 @@ TEACHER_WIDTHS = (140, 200, 150, 140, 240, 160)
 ACADEMIC_COLUMNS = (
     "student_id",
     "student_name",
-    "class_name",
+    "current_class",
     "subject",
     "score",
     "term",
@@ -70,6 +70,7 @@ class ReportsTab(BaseTab):
 
     def _build_toolbar(self) -> None:
         tools = ttk.Frame(self.frame)
+        self.toolbar = tools
         tools.pack(fill="x", pady=(0, 10))
         ttk.Label(tools, text="Filter student and academic reports by class").grid(
             row=0, column=0, sticky="w"
@@ -87,49 +88,49 @@ class ReportsTab(BaseTab):
             width=14,
         )
         self.student_status_box.grid(row=0, column=3, padx=(8, 8))
-        ttk.Button(tools, text="Refresh Reports", command=self.refresh).grid(row=0, column=4)
-        ttk.Label(tools, text="Student ID").grid(row=0, column=5, sticky="w")
-        ttk.Entry(tools, textvariable=self.student_id_filter, width=16).grid(
-            row=0, column=6, padx=(6, 8)
+        ttk.Button(tools, text="Refresh Reports", command=self.refresh).grid(
+            row=0, column=4, sticky="w"
         )
-        ttk.Label(tools, text="Teacher ID/name").grid(row=0, column=7, sticky="w")
-        ttk.Entry(tools, textvariable=self.teacher_filter, width=18).grid(
-            row=0, column=8, padx=(6, 0)
-        )
+        student_id_entry = ttk.Entry(tools, textvariable=self.student_id_filter, width=16)
+        teacher_entry = ttk.Entry(tools, textvariable=self.teacher_filter, width=18)
+        ttk.Label(tools, text="Student ID").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        student_id_entry.grid(row=1, column=1, sticky="w", padx=(6, 16), pady=(8, 0))
+        ttk.Label(tools, text="Teacher ID/name").grid(row=1, column=2, sticky="w", pady=(8, 0))
+        teacher_entry.grid(row=1, column=3, sticky="w", padx=(6, 0), pady=(8, 0))
         ttk.Label(tools, text="Academic subject/term/year").grid(
-            row=1, column=0, sticky="w", pady=(8, 0)
+            row=2, column=0, sticky="w", pady=(8, 0)
         )
-        ttk.Entry(tools, textvariable=self.academic_query, width=28).grid(
-            row=1, column=1, columnspan=2, sticky="w", padx=(8, 8), pady=(8, 0)
+        ttk.Entry(tools, textvariable=self.academic_query, width=36).grid(
+            row=2, column=1, columnspan=3, sticky="w", padx=(8, 8), pady=(8, 0)
         )
-        ttk.Label(tools, text="Attendance status").grid(row=1, column=3, sticky="w", pady=(8, 0))
+        ttk.Label(tools, text="Attendance status").grid(row=3, column=0, sticky="w", pady=(8, 0))
         ttk.Combobox(
             tools,
             textvariable=self.attendance_status_filter,
             values=("All", *ATTENDANCE_STATUSES),
             state="readonly",
             width=12,
-        ).grid(row=1, column=4, sticky="w", padx=(6, 8), pady=(8, 0))
-        ttk.Label(tools, text="From").grid(row=1, column=5, sticky="e", pady=(8, 0))
+        ).grid(row=3, column=1, sticky="w", padx=(6, 16), pady=(8, 0))
+        ttk.Label(tools, text="From").grid(row=3, column=2, sticky="e", pady=(8, 0))
         ttk.Entry(tools, textvariable=self.attendance_start, width=12).grid(
-            row=1, column=6, sticky="w", padx=(6, 8), pady=(8, 0)
+            row=3, column=3, sticky="w", padx=(6, 16), pady=(8, 0)
         )
-        ttk.Label(tools, text="To").grid(row=1, column=7, sticky="e", pady=(8, 0))
+        ttk.Label(tools, text="To").grid(row=3, column=4, sticky="e", pady=(8, 0))
         ttk.Entry(tools, textvariable=self.attendance_end, width=12).grid(
-            row=1, column=8, sticky="w", padx=(6, 0), pady=(8, 0)
+            row=3, column=5, sticky="w", padx=(6, 0), pady=(8, 0)
         )
-        ttk.Label(tools, text="Finance category").grid(row=2, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(tools, text="Finance category").grid(row=4, column=0, sticky="w", pady=(8, 0))
         self.finance_category_box = ttk.Combobox(
             tools, textvariable=self.finance_category_filter, state="readonly", width=18
         )
-        self.finance_category_box.grid(row=2, column=1, sticky="w", padx=(8, 8), pady=(8, 0))
-        ttk.Label(tools, text="From").grid(row=2, column=2, sticky="e", pady=(8, 0))
+        self.finance_category_box.grid(row=4, column=1, sticky="w", padx=(8, 16), pady=(8, 0))
+        ttk.Label(tools, text="From").grid(row=4, column=2, sticky="e", pady=(8, 0))
         ttk.Entry(tools, textvariable=self.finance_start, width=12).grid(
-            row=2, column=3, sticky="w", padx=(6, 8), pady=(8, 0)
+            row=4, column=3, sticky="w", padx=(6, 16), pady=(8, 0)
         )
-        ttk.Label(tools, text="To").grid(row=2, column=4, sticky="e", pady=(8, 0))
+        ttk.Label(tools, text="To").grid(row=4, column=4, sticky="e", pady=(8, 0))
         ttk.Entry(tools, textvariable=self.finance_end, width=12).grid(
-            row=2, column=5, sticky="w", padx=(6, 8), pady=(8, 0)
+            row=4, column=5, sticky="w", padx=(6, 0), pady=(8, 0)
         )
 
     def _build_report_tables(self) -> None:

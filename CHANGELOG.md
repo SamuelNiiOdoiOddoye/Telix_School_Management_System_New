@@ -8,6 +8,12 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
 
 ### Added
 
+- Academic-period score summaries in the Academic Records workflow, using the
+  recorded year/term labels and stable catalog IDs for understandable history.
+- Teacher-to-subject assignments by academic year, including validation,
+  assignment maintenance, and deletion protection for referenced records.
+- A Teacher Assignments subtab in Academic Setup and an ignored local JSON
+  file for its records.
 - Local Super Admin login/logout, in-memory authenticated sessions, account
   persistence, and salted `scrypt` password hashing.
 - One-time administrator bootstrap via `python -m telix.bootstrap_admin`, with
@@ -54,6 +60,25 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
 - Added total expenses to the dashboard.
 - Refreshed the README and manual acceptance checklist to reflect available
   lifecycle/status/report functionality without claiming the V1 phases complete.
+
+### Fixed
+
+- Preserved saved subject, term, and academic-year labels when editing an
+  existing linked academic record, so catalog renames do not rewrite history.
+- Labeled the class in academic reports as the student's current class, avoiding
+  the implication that it is a historical enrollment snapshot.
+
+### Testing
+
+- Added teacher-assignment service coverage, assignment UI smoke coverage,
+  malformed assignment-storage validation, and academic-history regression
+  tests.
+
+### Documentation
+
+- Updated the README, changelog, and manual acceptance checklist for teacher
+  assignments, per-period academic summaries, and the remaining lifecycle
+  timeline limitation.
 
 ### Security
 

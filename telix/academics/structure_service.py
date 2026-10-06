@@ -10,6 +10,7 @@ from telix.academics.structure_repository import AcademicStructureRepository, St
 from telix.core.errors import StorageError, ValidationError
 from telix.core.identifiers import generate_id
 from telix.core.text import clean_text
+from telix.teachers.assignment_repository import TeacherAssignmentRepository
 
 ID_FIELDS: dict[StructureKind, str] = {
     "class": "class_id",
@@ -97,9 +98,11 @@ class AcademicStructureService:
         self,
         repository: AcademicStructureRepository | None = None,
         student_exists: StudentExists | None = None,
+        assignment_repository: TeacherAssignmentRepository | None = None,
     ) -> None:
         self._repository = repository or AcademicStructureRepository()
         self._student_exists = student_exists or (lambda _student_id: False)
+        self._assignment_repository = assignment_repository
 
     def list(self, kind: StructureKind) -> builtins.list[dict[str, Any]]:
         return self._repository.list(kind)
@@ -413,6 +416,16 @@ class AcademicStructureService:
                 self._same(item.get("academic_year_id"), record["academic_year_id"])
                 for child_kind in child_kinds
                 for item in self.list(child_kind)
+            )
+            referenced = referenced or (
+                self._assignment_repository is not None
+                and self._assignment_repository.references(
+                    "academic_year_id", str(record["academic_year_id"])
+                )
+            )
+        elif kind == "subject":
+            referenced = self._assignment_repository is not None and (
+                self._assignment_repository.references("subject_id", str(record["subject_id"]))
             )
         else:
             referenced = False

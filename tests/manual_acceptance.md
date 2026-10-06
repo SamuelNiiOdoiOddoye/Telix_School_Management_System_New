@@ -42,9 +42,18 @@ creates backups on writes. Do not test against a live data directory.
 - [ ] In Academic Setup, add class `Grade 1`, subject `Mathematics` with code
       `TEST-MATH`, academic year `2026/2027` (2026-09-01 through 2027-06-30),
       and Term 1 (2026-09-01 through 2026-12-20).
+- [ ] In Academic Setup > Teacher Assignments, assign `TEST-TCH-001` to
+      `Mathematics` for `2026/2027`. Confirm the assignment appears in the
+      table, a duplicate assignment is rejected, and deleting the assigned
+      teacher, subject, or academic year is blocked until the assignment is
+      deleted. Delete the assignment after verifying those protections.
 - [ ] Add an academic record for `TEST-STU-001` with managed subject
       `Mathematics`, score `80`, managed Term 1, and academic year `2026/2027`.
       Confirm it appears in the table and linked Reports view.
+- [ ] Add a second subject score for the same student and period. Search for
+      the student and confirm Academic Records shows the correct subject count
+      and average for that saved year and term. Rename a catalog label and
+      confirm the existing score's historical period labels remain unchanged.
 - [ ] In Assessments, save a 2026/2027 grading profile with weighted
       components `Coursework=40, Exam=60` and bands
       `0=F:Needs improvement;50=C:Satisfactory;80=A:Excellent`. Add component
@@ -112,8 +121,6 @@ creates backups on writes. Do not test against a live data directory.
 
 ## Not yet available for manual acceptance
 
-Teacher/subject assignments, a consolidated student lifecycle timeline,
-invoices, and academic-period payment allocations remain roadmap items. Do not
-mark those items accepted until their UI and service workflows are implemented
-and tested. Automated service and UI smoke tests do not replace the real-desktop
-checklist above.
+A consolidated student-status and enrollment lifecycle timeline, invoices, and
+academic-period payment allocations remain roadmap items. Automated service
+and UI smoke tests do not replace the real-desktop checklist above.

@@ -7,13 +7,19 @@ from typing import Any, Mapping
 
 from telix.core.errors import ValidationError
 from telix.core.search import find_by_id, find_index_by_id
+from telix.teachers.assignment_repository import TeacherAssignmentRepository
 from telix.teachers.repository import TeacherRepository
 from telix.teachers.validator import prepare_teacher
 
 
 class TeacherService:
-    def __init__(self, repository: TeacherRepository | None = None) -> None:
+    def __init__(
+        self,
+        repository: TeacherRepository | None = None,
+        assignment_repository: TeacherAssignmentRepository | None = None,
+    ) -> None:
         self._repository = repository or TeacherRepository()
+        self._assignment_repository = assignment_repository
 
     def list(self) -> builtins.list[dict[str, Any]]:
         return self._repository.list()
@@ -45,6 +51,12 @@ class TeacherService:
         return teacher
 
     def delete(self, teacher_id: str) -> dict[str, Any]:
+        if self._assignment_repository and self._assignment_repository.references(
+            "teacher_id", teacher_id
+        ):
+            raise ValidationError(
+                "Cannot delete this teacher while subject assignments refer to them."
+            )
         records = self.list()
         index = find_index_by_id(records, "teacher_id", teacher_id)
         if index is None:

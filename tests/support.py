@@ -21,6 +21,8 @@ from telix.storage.json_store import JsonStore
 from telix.students.repository import StudentRepository
 from telix.students.service import StudentService
 from telix.teachers.repository import TeacherRepository
+from telix.teachers.assignment_repository import TeacherAssignmentRepository
+from telix.teachers.assignment_service import TeacherAssignmentService
 from telix.teachers.service import TeacherService
 
 
@@ -83,6 +85,7 @@ class ServiceTestCase(unittest.TestCase):
         self.directory = Path(directory.name)
         self.student_store = JsonStore(self.directory / "student_records.json")
         self.teacher_store = JsonStore(self.directory / "teacher_records.json")
+        self.teacher_assignment_store = JsonStore(self.directory / "teacher_assignments.json")
         self.academic_store = JsonStore(self.directory / "academic_records.json")
         self.attendance_store = JsonStore(self.directory / "attendance_records.json")
         ledger_stores: dict[LedgerKind, JsonStore] = {
@@ -98,9 +101,19 @@ class ServiceTestCase(unittest.TestCase):
             "profile": JsonStore(self.directory / "grading_profiles.json"),
         }
         self.students = StudentService(StudentRepository(self.student_store))
-        self.teachers = TeacherService(TeacherRepository(self.teacher_store))
+        self.teacher_assignment_repository = TeacherAssignmentRepository(
+            self.teacher_assignment_store
+        )
+        self.teachers = TeacherService(
+            TeacherRepository(self.teacher_store), self.teacher_assignment_repository
+        )
         self.academic_structure = AcademicStructureService(
-            AcademicStructureRepository(structure_stores), self.students.exists
+            AcademicStructureRepository(structure_stores),
+            self.students.exists,
+            self.teacher_assignment_repository,
+        )
+        self.teacher_assignments = TeacherAssignmentService(
+            self.teacher_assignment_repository, self.teachers.get, self.academic_structure.get
         )
         self.academics = AcademicRecordService(
             AcademicRepository(self.academic_store), self.academic_structure

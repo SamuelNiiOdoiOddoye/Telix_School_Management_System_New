@@ -52,9 +52,13 @@ class AcademicsTab(BaseTab):
                 if isinstance(widget, ttk.Combobox):
                     self.selectors[field] = widget
         rows = -(-len(FORM_FIELDS) // 3)
-        ttk.Label(form, textvariable=self.student_summary, style="Subtitle.TLabel").grid(
-            row=rows, column=0, columnspan=6, sticky="w", pady=(8, 0)
-        )
+        ttk.Label(
+            form,
+            textvariable=self.student_summary,
+            style="Subtitle.TLabel",
+            wraplength=900,
+            justify="left",
+        ).grid(row=rows, column=0, columnspan=6, sticky="w", pady=(8, 0))
         add_button_row(
             form,
             (
@@ -183,7 +187,19 @@ class AcademicsTab(BaseTab):
             self._show_student(student)
 
     def _show_student(self, student: dict[str, Any]) -> None:
-        self.student_summary.set(f"Student: {student['name']} · Class: {student['class_name']}")
+        student_id = str(student["student_id"])
+        summaries = self.context.services.academics.period_summaries(student_id)
+        lines = [f"Student: {student['name']} · Current class: {student['class_name']}"]
+        if summaries:
+            lines.append("Academic history (subjects · average score):")
+            lines.extend(
+                f"  {item['academic_year']} · {item['term']}: "
+                f"{item['subject_count']} · {item['average_score']:.2f}"
+                for item in summaries
+            )
+        else:
+            lines.append("Academic history: no score records yet.")
+        self.student_summary.set("\n".join(lines))
 
     def _after_change(self) -> None:
         self.clear_form()
@@ -208,6 +224,11 @@ class AcademicsTab(BaseTab):
                     if item.get("name") and item.get(id_field)
                 ]
                 options.extend(
+                    f"{record[label_field]} [{record[id_field]}]"
+                    for record in records
+                    if record.get(id_field) and record.get(label_field)
+                )
+                options.extend(
                     str(record[label_field])
                     for record in records
                     if not record.get(id_field) and record.get(label_field)
@@ -222,7 +243,9 @@ class AcademicsTab(BaseTab):
     def _reference_label(self, kind: StructureKind, entity_id: str, fallback: str) -> str:
         if not entity_id:
             return fallback
+        if fallback:
+            return f"{fallback} [{entity_id}]"
         records = self.context.services.academic_structure.list(kind)
         id_field = f"{kind}_id"
         match = next((item for item in records if item.get(id_field) == entity_id), None)
-        return f"{match['name']} [{entity_id}]" if match else fallback
+        return f"{match['name']} [{entity_id}]" if match else entity_id

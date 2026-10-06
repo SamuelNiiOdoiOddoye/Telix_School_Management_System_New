@@ -44,6 +44,7 @@ class DesktopStartupSmokeTests(ServiceTestCase):
                 self.attendance,
                 self.finance,
                 self.removal,
+                self.teacher_assignments,
             )
             application = SchoolManagementSystem(root, services, self._session(), lambda: None)
             root.update()
@@ -67,9 +68,13 @@ class DesktopStartupSmokeTests(ServiceTestCase):
                 self.attendance,
                 self.finance,
                 self.removal,
+                self.teacher_assignments,
             )
             application = SchoolManagementSystem(root, services, self._session(), lambda: None)
             reports = application.tabs["reports"]
+            root.geometry("1080x680")
+            root.update_idletasks()
+            self.assertLessEqual(reports.toolbar.winfo_reqwidth(), 1048)
             self.students.add(valid_student())
             self.students.add(valid_student(student_id="STU-002", status="Inactive"))
             self.teachers.add(valid_teacher())
@@ -109,6 +114,60 @@ class DesktopStartupSmokeTests(ServiceTestCase):
         finally:
             root.destroy()
 
+    def test_teacher_assignment_ui_creates_and_removes_assignment(self) -> None:
+        try:
+            root = tk.Tk()
+        except tk.TclError as error:
+            self.skipTest(f"Tk desktop display is unavailable: {error}")
+        try:
+            root.withdraw()
+            services = Services(
+                self.students,
+                self.teachers,
+                self.academics,
+                self.assessments,
+                self.academic_structure,
+                self.attendance,
+                self.finance,
+                self.removal,
+                self.teacher_assignments,
+            )
+            application = SchoolManagementSystem(root, services, self._session(), lambda: None)
+            setup = application.tabs["academic_setup"]
+            teacher = self.teachers.add(valid_teacher())
+            subject = self.academic_structure.add("subject", {"name": "Mathematics"})
+            year = self.academic_structure.add(
+                "academic_year",
+                {
+                    "name": "2026/2027",
+                    "start_date": "2026-09-01",
+                    "end_date": "2027-06-30",
+                },
+            )
+            setup.refresh()
+            setup.assignment_editor.variables["teacher_id"].set(
+                f"{teacher['name']} [{teacher['teacher_id']}]"
+            )
+            setup.assignment_editor.variables["subject_id"].set(
+                f"{subject['name']} [{subject['subject_id']}]"
+            )
+            setup.assignment_editor.variables["academic_year_id"].set(
+                f"{year['name']} [{year['academic_year_id']}]"
+            )
+            application._context.feedback.success = lambda _message: None
+            application._context.feedback.confirm = lambda _title, _message: True
+
+            setup.add_assignment()
+            self.assertEqual(len(self.teacher_assignments.list()), 1)
+            self.assertEqual(len(setup.assignment_editor.tree.get_children()), 1)
+
+            assignment_id = self.teacher_assignments.list()[0]["assignment_id"]
+            setup.assignment_editor.selected_id = assignment_id
+            setup.delete_assignment()
+            self.assertEqual(self.teacher_assignments.list(), [])
+        finally:
+            root.destroy()
+
     def test_main_application_requires_authentication_and_logout_clears_session(self) -> None:
         try:
             root = tk.Tk()
@@ -125,6 +184,7 @@ class DesktopStartupSmokeTests(ServiceTestCase):
                 self.attendance,
                 self.finance,
                 self.removal,
+                self.teacher_assignments,
             )
             with self.assertRaisesRegex(ValueError, "authenticated session is required"):
                 SchoolManagementSystem(root, services, UserSession(), lambda: None)
@@ -203,6 +263,7 @@ class DesktopStartupSmokeTests(ServiceTestCase):
                 self.attendance,
                 self.finance,
                 self.removal,
+                self.teacher_assignments,
             )
             controller = ApplicationController(root, authentication, lambda: services)
             controller.start()

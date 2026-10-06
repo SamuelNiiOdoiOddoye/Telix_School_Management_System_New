@@ -27,6 +27,14 @@ class Editor:
     selected_id: str | None = None
 
 
+@dataclass
+class AssignmentEditor:
+    tree: ttk.Treeview
+    variables: dict[str, tk.StringVar]
+    selectors: dict[str, ttk.Combobox]
+    selected_id: str | None = None
+
+
 EDITOR_DEFINITIONS: dict[
     StructureKind, tuple[str, tuple[Field, ...], tuple[str, ...], tuple[int, ...]]
 ] = {
@@ -98,6 +106,45 @@ class AcademicSetupTab(BaseTab):
         self.notebook.pack(fill="both", expand=True)
         for kind, (title, fields, columns, widths) in EDITOR_DEFINITIONS.items():
             self._build_editor(kind, title, fields, columns, widths)
+        self._build_assignments()
+
+    def _build_assignments(self) -> None:
+        page = ttk.Frame(self.notebook, padding=12)
+        self.notebook.add(page, text="Teacher Assignments")
+        fields = (
+            ("teacher_id", "Teacher"),
+            ("subject_id", "Subject"),
+            ("academic_year_id", "Academic year"),
+        )
+        variables = {name: tk.StringVar() for name, _ in fields}
+        selectors: dict[str, ttk.Combobox] = {}
+        form = ttk.LabelFrame(page, text="Teacher assignment", padding=12)
+        form.pack(fill="x")
+        for index, (name, label) in enumerate(fields):
+            row, column = divmod(index, 3)
+            add_form_field(form, label, variables[name], row, column * 2, ("",))
+            widget = form.grid_slaves(row=row, column=column * 2 + 1)[0]
+            if isinstance(widget, ttk.Combobox):
+                selectors[name] = widget
+        add_button_row(
+            form,
+            (
+                ("Assign Teacher", self.add_assignment),
+                ("Update Selected", self.update_assignment),
+                ("Delete Selected", self.delete_assignment),
+                ("Clear", self.clear_assignment),
+            ),
+            row=1,
+        )
+        tree_frame = ttk.Frame(page)
+        tree_frame.pack(fill="both", expand=True, pady=(12, 0))
+        tree = create_tree(
+            tree_frame,
+            ("assignment_id", "teacher_name", "subject_name", "academic_year"),
+            (150, 220, 220, 180),
+        )
+        tree.bind("<<TreeviewSelect>>", self._on_assignment_select)
+        self.assignment_editor = AssignmentEditor(tree, variables, selectors)
 
     def _build_editor(
         self,
@@ -257,6 +304,87 @@ class AcademicSetupTab(BaseTab):
             self._after_change,
         )
 
+    def add_assignment(self) -> None:
+        self.context.runner.run(
+            lambda: self.context.services.teacher_assignments.add(self._assignment_values()),
+            "Teacher assigned to subject successfully.",
+            self._after_change,
+        )
+
+    def update_assignment(self) -> None:
+        editor = self.assignment_editor
+        if not editor.selected_id:
+            self.context.feedback.error("Select a teacher assignment before updating it.")
+            return
+        selected_id = editor.selected_id
+        self.context.runner.run(
+            lambda: self.context.services.teacher_assignments.update(
+                selected_id, self._assignment_values()
+            ),
+            "Teacher assignment updated successfully.",
+            self._after_change,
+        )
+
+    def delete_assignment(self) -> None:
+        editor = self.assignment_editor
+        if not editor.selected_id:
+            self.context.feedback.error("Select a teacher assignment before deleting it.")
+            return
+        if not self.context.feedback.confirm(
+            "Delete Teacher Assignment", "Delete the selected teacher assignment?"
+        ):
+            return
+        selected_id = editor.selected_id
+        self.context.runner.run(
+            lambda: self.context.services.teacher_assignments.delete(selected_id),
+            "Teacher assignment deleted successfully.",
+            self._after_change,
+        )
+
+    def clear_assignment(self) -> None:
+        editor = self.assignment_editor
+        editor.selected_id = None
+        for variable in editor.variables.values():
+            variable.set("")
+
+    def _assignment_values(self) -> dict[str, str]:
+        editor = self.assignment_editor
+        values: dict[str, str] = {}
+        for field, selector in editor.selectors.items():
+            values[field] = self._reference_id(selector.get())
+        return values
+
+    def _on_assignment_select(self, _event: tk.Event[Any]) -> None:
+        editor = self.assignment_editor
+        selection = editor.tree.selection()
+        if not selection:
+            return
+        try:
+            assignment = next(
+                (
+                    item
+                    for item in self.context.services.teacher_assignments.list()
+                    if item["assignment_id"] == selection[0]
+                ),
+                None,
+            )
+        except StorageError as error:
+            self.context.feedback.error(str(error))
+            return
+        if assignment is None:
+            return
+        editor.selected_id = assignment["assignment_id"]
+        for field in editor.variables:
+            entity_id = assignment[field]
+            name = assignment[
+                {
+                    "teacher_id": "teacher_name",
+                    "subject_id": "subject_name",
+                    "academic_year_id": "academic_year",
+                }[field]
+            ]
+            editor.variables[field].set(f"{name} [{entity_id}]")
+
     def _form_values(self, editor: Editor) -> dict[str, str]:
         values = {name: variable.get().strip() for name, variable in editor.variables.items()}
         for field, selector in editor.selectors.items():
@@ -328,19 +456,44 @@ class AcademicSetupTab(BaseTab):
         for editor in self.editors.values():
             for field, selector in editor.selectors.items():
                 selector["values"] = options[field]
+        self.assignment_editor.selectors["teacher_id"]["values"] = [
+            f"{record['name']} [{record['teacher_id']}]"
+            for record in self.context.services.teachers.list()
+        ]
+        assignment_selector_sources: tuple[tuple[str, StructureKind, str], ...] = (
+            ("subject_id", "subject", "subject_id"),
+            ("academic_year_id", "academic_year", "academic_year_id"),
+        )
+        for field, kind, id_field in assignment_selector_sources:
+            self.assignment_editor.selectors[field]["values"] = [
+                f"{record['name']} [{record[id_field]}]"
+                for record in self.context.services.academic_structure.list(kind)
+            ]
 
     def _after_change(self) -> None:
         for kind in self.editors:
             self.clear(kind)
+        self.clear_assignment()
         self.context.refresh_all()
 
     def refresh(self) -> None:
-        self._refresh_selectors()
-        for kind, editor in self.editors.items():
-            records = self.context.services.academic_structure.list(kind)
-            render_records(editor.tree, records, self._columns(kind))
-            if not editor.selected_id:
-                self.clear(kind)
+        try:
+            self._refresh_selectors()
+            for kind, editor in self.editors.items():
+                records = self.context.services.academic_structure.list(kind)
+                render_records(editor.tree, records, self._columns(kind))
+                if not editor.selected_id:
+                    self.clear(kind)
+            assignments = self.context.services.teacher_assignments.list()
+            render_records(
+                self.assignment_editor.tree,
+                assignments,
+                ("assignment_id", "teacher_name", "subject_name", "academic_year"),
+            )
+            if not self.assignment_editor.selected_id:
+                self.clear_assignment()
+        except StorageError as error:
+            self.context.feedback.error(str(error))
 
     @staticmethod
     def _columns(kind: StructureKind) -> tuple[str, ...]:
