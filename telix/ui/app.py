@@ -10,6 +10,7 @@ from telix.services.container import Services, build_services
 from telix.ui.feedback import Feedback
 from telix.ui.operations import OperationRunner
 from telix.ui.tabs.academics import AcademicsTab
+from telix.ui.tabs.academic_setup import AcademicSetupTab
 from telix.ui.tabs.base import BaseTab, TabContext
 from telix.ui.tabs.dashboard import DashboardTab
 from telix.ui.tabs.finance import FinanceTab
@@ -25,6 +26,7 @@ TAB_CLASSES: tuple[type[BaseTab], ...] = (
     StudentsTab,
     TeachersTab,
     AcademicsTab,
+    AcademicSetupTab,
     ReportsTab,
     FinanceTab,
 )

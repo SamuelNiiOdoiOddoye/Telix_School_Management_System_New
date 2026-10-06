@@ -34,6 +34,27 @@ class StudentRemovalTests(ServiceTestCase):
         self.assertEqual([r["student_id"] for r in self.academics.list()], ["STU-002"])
         self.assertEqual([s["student_id"] for s in self.students.list()], ["STU-002"])
 
+    def test_removing_a_student_also_removes_enrollments(self):
+        self.students.add(valid_student())
+        year = self.academic_structure.add(
+            "academic_year",
+            {"name": "2026/2027", "start_date": "2026-09-01", "end_date": "2027-06-30"},
+        )
+        classroom = self.academic_structure.add("class", {"name": "Grade 1"})
+        self.academic_structure.add(
+            "enrollment",
+            {
+                "student_id": "STU-001",
+                "academic_year_id": year["academic_year_id"],
+                "class_id": classroom["class_id"],
+                "start_date": "2026-09-01",
+            },
+        )
+
+        self.removal.remove("STU-001")
+
+        self.assertEqual(self.academic_structure.list("enrollment"), [])
+
     def test_teachers_are_unaffected(self):
         self.teachers.add(valid_teacher())
         self.students.add(valid_student())

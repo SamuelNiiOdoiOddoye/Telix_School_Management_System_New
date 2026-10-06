@@ -8,6 +8,8 @@ from pathlib import Path
 
 from telix.academics.repository import AcademicRepository
 from telix.academics.service import AcademicRecordService
+from telix.academics.structure_repository import AcademicStructureRepository, StructureKind
+from telix.academics.structure_service import AcademicStructureService
 from telix.services.student_removal import StudentRemovalService
 from telix.storage.json_store import JsonStore
 from telix.students.repository import StudentRepository
@@ -75,7 +77,14 @@ class ServiceTestCase(unittest.TestCase):
         self.student_store = JsonStore(self.directory / "student_records.json")
         self.teacher_store = JsonStore(self.directory / "teacher_records.json")
         self.academic_store = JsonStore(self.directory / "academic_records.json")
+        structure_stores: dict[StructureKind, JsonStore] = {
+            kind: JsonStore(self.directory / f"{kind}.json")
+            for kind in ("class", "subject", "academic_year", "term", "enrollment")
+        }
         self.students = StudentService(StudentRepository(self.student_store))
         self.teachers = TeacherService(TeacherRepository(self.teacher_store))
         self.academics = AcademicRecordService(AcademicRepository(self.academic_store))
-        self.removal = StudentRemovalService(self.students, self.academics)
+        self.academic_structure = AcademicStructureService(
+            AcademicStructureRepository(structure_stores), self.students.exists
+        )
+        self.removal = StudentRemovalService(self.students, self.academics, self.academic_structure)

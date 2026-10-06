@@ -11,11 +11,14 @@ Telix is a desktop school-records application built with Python and Tkinter. It 
 - [Requirements and installation](#requirements-and-installation)
 - [Run the application](#run-the-application)
 - [Run the tests](#run-the-tests)
+- [Manual desktop acceptance checklist](#manual-desktop-acceptance-checklist)
 - [Data files and privacy](#data-files-and-privacy)
 - [Architecture](#architecture)
 - [Project structure](#project-structure)
 - [Changes in the modular restructure](#changes-in-the-modular-restructure)
-- [Known limitations and roadmap](#known-limitations-and-roadmap)
+- [Development phases](#development-phases)
+- [V2 — Telix platform](#v2--telix-platform)
+- [Known limitations](#known-limitations)
 - [Contributing](#contributing)
 - [License and usage](#license-and-usage)
 
@@ -55,6 +58,21 @@ Telix is a desktop school-records application built with Python and Tkinter. It 
 - Prevents duplicate subject entries for the same student, term, and academic year.
 - Removes a student's linked academic records when that student is deleted.
 
+### Academic setup and enrollment
+
+- Create, view, update, and delete classes, subjects, academic years, and terms
+  from the **Academic Setup** tab.
+- Create and maintain student enrollments linked by explicit student, class,
+  and academic-year IDs.
+- Keep enrollment history through effective start/end dates; transfers within
+  an academic year must not overlap.
+- Validate term/enrollment dates against the selected academic year and prevent
+  deleting classes or years that are still referenced.
+
+The existing Academic Records form still accepts subject, term, and academic
+year as text. Connecting marks and assessments to the managed catalogs is
+planned academic-management work, not yet implemented.
+
 ### Reports
 
 - Shows student and parent or guardian contact details.
@@ -90,9 +108,10 @@ This is a summary of the values in the records, not an accounting ledger. It doe
 2. In **Students** or **Teachers**, complete the form and choose **Add Student** or **Add Teacher**. IDs are generated when blank; otherwise enter a unique ID.
 3. To edit a record, select its row in the table, change the form values, and choose **Update Selected**. The original ID is kept unchanged.
 4. Use the exact-ID search controls to find a student or teacher. The Students tab also supports filtering by class.
-5. In **Academic Records**, search for and confirm a student, enter a subject, score, term, and academic year, then choose **Add Score**. Existing entries can be selected and updated or deleted.
-6. Open **Reports** to view linked student, teacher, and academic information. Choose a class filter to narrow the student and academic views.
-7. Open **Finance** to recalculate the expected fee income, teacher salary expense, and resulting profit or loss.
+5. In **Academic Setup**, create the classes, academic years, subjects, and terms your school uses. Add a student enrollment by selecting its student, class, and year and setting its effective start date.
+6. In **Academic Records**, search for and confirm a student, enter a subject, score, term, and academic year, then choose **Add Score**. Existing entries can be selected and updated or deleted.
+7. Open **Reports** to view linked student, teacher, and academic information. Choose a class filter to narrow the student and academic views.
+8. Open **Finance** to recalculate the expected fee income, teacher salary expense, and resulting profit or loss.
 
 Successful changes trigger refreshes of the relevant tables and summary views. Delete actions ask for confirmation. Deleting a student also removes academic records linked to that student's ID.
 
@@ -157,6 +176,13 @@ mypy telix
 
 These checks also run in GitHub Actions for pull requests and pushes.
 
+### Manual desktop acceptance checklist
+
+There is not yet automated GUI acceptance coverage. Use the
+[manual desktop acceptance checklist](tests/manual_acceptance.md) in a
+disposable copy of the repository; do not run acceptance scenarios against
+live school records.
+
 ## Data files and privacy
 
 The application reads and writes these files in the project root:
@@ -166,6 +192,11 @@ The application reads and writes these files in the project root:
 | `student_records.json` | Student and parent/guardian records |
 | `teacher_records.json` | Teacher records |
 | `academic_records.json` | Student academic records |
+| `classes.json` | Managed class catalog |
+| `subjects.json` | Managed subject catalog |
+| `academic_years.json` | Academic-year definitions |
+| `terms.json` | Terms linked to academic years |
+| `enrollments.json` | Effective-dated student class enrollments |
 
 If a file does not exist yet, it is treated as an empty record list. Before overwriting an existing file, the application copies it to the corresponding `*.backup.json` file. Saves are written to a temporary file in the same directory and then replace the main file. A backup is a recovery aid, not a substitute for regular off-device backups.
 
@@ -181,10 +212,10 @@ The code is separated by responsibility:
 
 1. **`telix/core/`** — shared validation, text normalization, identifiers, search, amount conversion, formatting, and application errors.
 2. **`telix/storage/`** — JSON file persistence and a generic repository that normalizes loaded records.
-3. **`telix/students/`, `telix/teachers/`, `telix/academics/`** — field definitions, legacy normalization, validation, repositories, and record-specific business rules.
+3. **`telix/students/`, `telix/teachers/`, `telix/academics/`** — field definitions, legacy normalization, validation, repositories, and record-specific business rules. Academic setup and enrollment rules are implemented in `academics/structure_service.py`.
 4. **`telix/finance/`** — the expected-income and salary summary calculation.
 5. **`telix/services/`** — service construction and workflows spanning record types, including student deletion with linked academic records.
-6. **`telix/ui/`** — the Tkinter app shell, shared tab context, reusable forms and tables, feedback, and one tab module per screen.
+6. **`telix/ui/`** — the Tkinter app shell, shared tab context, reusable forms and tables, feedback, and one tab module per screen, including **Academic Setup**.
 
 The UI calls services; services apply business rules through repositories; repositories use the JSON storage layer. This keeps validation and record rules out of screen event handlers. `telix/ui/app.py` composes the services and registers the tabs. `main.py` and `telix/__main__.py` provide the two launch commands.
 
@@ -242,22 +273,190 @@ The modular restructure recorded in [CHANGELOG.md](CHANGELOG.md) reorganized the
 
 The restructure is intended to preserve the existing screens, record locations, validation behavior, and application workflows while making the code easier to maintain. Existing numeric JSON amounts remain readable; newly written monetary amounts are represented as decimal strings.
 
-## Known limitations and roadmap
+## Development phases
 
-The following are not implemented in the current application:
+Telix is being developed in stages. The current product is **V1: a local,
+single-user desktop application**. V1.x progressively completes and hardens
+that application; it is not an enterprise SaaS product. **V2 is a separate
+planned evolution** into the larger multi-user, multi-tenant Telix platform.
+Roadmap items below are planned unless explicitly identified as implemented.
 
-- User authentication, role-based permissions, and multi-user access.
-- Encryption at rest, audit logging, and configurable privacy/retention controls.
-- Transactional storage for operations that update multiple JSON files. Student deletion updates academic and student files separately; if the second save fails, the first may already have completed.
-- A database backend, schema migration tooling, or support for concurrent writers. Each list operation reads the complete JSON file, there is no inter-process locking, and application-level ID checks do not provide database-enforced uniqueness.
-- Attendance, timetable, fees received, balances, expense ledgers, and broader financial reporting.
-- Report export to PDF, spreadsheet, or other formats.
-- Automated installer/distribution package and real-desktop GUI acceptance tests.
-- Dedicated restore/backup management UI and production operations documentation.
-- Multi-tenant organization/branch scoping and scoped access to student, parent, teacher, and finance data.
-- Import/data-quality tooling for legacy records. Existing JSON may contain incomplete or nonstandard records; review and clean such records before migrating them.
+### V1 — Local desktop school-management foundation
 
-These items are future work, not current features. In particular, the financial summary must not be treated as a complete accounting system, and the JSON storage model should not be used for concurrent or networked multi-user operation.
+**Purpose:** Build a reliable, modular school-management application for
+fundamental school records and workflows on one local desktop.
+
+#### V1.0 — Core foundation
+
+**Status: Substantially complete.** V1.0 established the current architectural
+foundation:
+
+- Python desktop application using Tkinter/ttk.
+- Modular student, teacher, and academic-record domains.
+- JSON persistence behind repository/service boundaries.
+- Student and teacher record CRUD, search, field validation, and legacy-data
+  normalization.
+- Academic score records associated with students, with term/year fields and
+  duplicate checks.
+- Finance summary foundations using `Decimal` rather than binary floating
+  point.
+- Shared error handling, reusable form/table widgets, and operational logging
+  that avoids record values.
+- Automated unit and workflow tests, Ruff linting and formatting, mypy, and
+  GitHub Actions CI.
+- Ignore rules for local school records, backups, and personal change files.
+
+“Substantially complete” describes the foundation, not completion of the full
+V1 acceptance criteria below.
+
+#### V1.1 — Core records completion
+
+**Status: In progress.** Student and teacher create/view/search/update/delete
+workflows and basic academic-record CRUD are present. The Academic Setup tab
+now manages class, subject, academic-year, and term catalogs plus
+effective-dated enrollments. Service tests cover core constraints and
+enrollment history, but automated GUI acceptance coverage remains missing.
+Remaining:
+
+- Integration of the managed subject, term, and academic-year catalogs with
+  academic records rather than relying on free-text values.
+- Complete validation, meaningful errors, persistence, UI integration, and
+  tests across all core records and their relationships.
+
+#### V1.2 — Academic management
+
+**Status: Planned.** Add managed classes, subjects, academic years and terms;
+effective-dated student enrollment; teacher and subject assignment;
+assessments; grades and grade calculations; academic summaries; student
+academic history; filtering; and basic academic reports.
+
+This phase remains local desktop V1 work. It does not add V2 authentication,
+multi-tenancy, APIs, or mobile apps.
+
+#### V1.3 — Attendance and student lifecycle
+
+**Status: Planned.** Add attendance records, a daily attendance workflow and
+summaries, enrollment/student status, transfer and withdrawal, promotion, and
+completion/graduation status where applicable. Effective-dated enrollment is
+the intended basis for class history. Related academic and attendance data
+must not be orphaned by student lifecycle operations.
+
+#### V1.4 — Finance
+
+**Status: Planned.** Extend the current estimate into a tested local finance
+foundation with fee categories, charges/invoices, payments and payment
+history, outstanding balances, appropriate discounts, expenses, financial
+summaries, and basic exportable reports. All monetary calculations must remain
+`Decimal`-safe. The current fee-minus-salary estimate is not a ledger and does
+not satisfy this phase.
+
+#### V1.5 — Reports and administration
+
+**Status: Planned.** Add useful student, teacher, academic, attendance,
+financial, and outstanding-fee reports; class summaries; dashboard
+statistics; search/filtering; and print/export where practical. Report
+generation belongs in domain/service logic, not in UI-only state manipulation.
+
+#### V1.6 — UX/UI completion
+
+**Status: In progress.** The current application has reusable widgets,
+navigation, validation feedback, and delete confirmations. A V1 release still
+needs a systematic review of navigation, layout, typography, spacing, empty
+and error states, dialogs, icons, keyboard usability, accessibility basics,
+and supported desktop window sizes. Continue to prefer shared UI components
+over duplicated behavior.
+
+#### V1.7 — Testing, reliability, and release hardening
+
+**Status: In progress.** CI currently runs tests, Ruff lint and format checks,
+and mypy on Python 3.10 and 3.13. Existing automated tests cover core helpers,
+JSON storage, normalization, record services, finance calculations, and
+selected workflows. The remaining work includes broader failure-path and
+workflow coverage, backup/restore and financial edge cases, GUI acceptance
+coverage or a repeatable manual checklist, and clean-install verification.
+
+A phase is complete only when its behavior, UI workflow, validation,
+persistence, error handling, relevant tests, CI, lint, format, type checks,
+and documentation meet its acceptance criteria.
+
+#### V1.8 — Documentation and release
+
+**Status: In progress.** This README documents the current product, its
+limitations, and the staged V1-to-V2 roadmap. Before declaring and tagging a
+V1 release, complete the V1 acceptance criteria, review documentation against
+the actual shipped behavior, and add release notes and practical screenshots,
+sample-data instructions, or diagrams where available. No V1 release tag is
+claimed by this roadmap.
+
+### V1 completion criteria
+
+V1 is not complete until the application reliably demonstrates core student
+and teacher records; managed classes, subjects, years, terms and enrollment;
+academics and student history; attendance and lifecycle workflows; fees,
+charges, payments, balances, expenses and accurate summaries; useful reports;
+coherent UI behavior; automated unit, service, repository and workflow tests;
+practical GUI acceptance coverage; passing CI/lint/format/type checks; and
+documentation consistent with the implementation.
+
+## V2 — Telix platform
+
+V2 is a separate planned architectural stage, not functionality in this
+desktop application. It is intended to evolve Telix into a multi-user,
+multi-tenant school-management platform. The current V1 domain rules and
+storage abstraction are inputs to that design, not proof that its features
+already exist.
+
+### Planned platform architecture
+
+The intended direction includes Django and Django REST Framework,
+PostgreSQL, Redis, Celery, a Next.js/React/TypeScript web experience with
+Tailwind CSS, and Flutter mobile applications. These are roadmap technologies;
+they are not current runtime dependencies.
+
+### Planned identity and tenant capabilities
+
+- User accounts, authentication, and security management.
+- Role-based access control, permission scopes, organization membership, and
+  audit logging, with authorization designed centrally rather than scattered
+  across UI code.
+- Organizations, schools, branches, tenant-isolated data, school-specific
+  configuration, academic years, terms, and settings.
+- Explicit, enforceable ownership boundaries for every tenant-owned record.
+- A conceptual access chain of user → membership → role → permissions → scope.
+
+### Planned applications and functional areas
+
+The eventual platform may include a Telix Admin control plane, school web
+application, teacher, student, and parent/guardian experiences, an API layer,
+and mobile applications. Planned functional areas include administration,
+staff, academics, attendance, assessments, grading, assignments, timetables,
+finance, invoices, payments, reports, communications, notifications,
+documents, analytics, search, and settings. These are V2 goals and must not
+be represented as current V1 features.
+
+## Known limitations
+
+- The current application is local and single-user; it has no authentication,
+  roles, tenant isolation, or multi-user access.
+- Local JSON persistence has no database constraints, inter-process locking,
+  or transaction spanning multiple files. Student deletion updates academic
+  and student records separately and may be interrupted partway through.
+- Each list operation reads its full JSON file. Backups are made during saves,
+  but there is no backup/restore management UI.
+- Finance currently totals recorded student fees and teacher salaries. It does
+  not track charges, received payments, balances, other expenses, or financial
+  periods; its profit/loss is only an estimate.
+- Attendance, timetables, teacher/subject assignment, assessment and grading
+  workflows, and the other roadmap items are not currently implemented unless
+  stated above.
+- The app provides no encryption at rest or audit history. Keep local record
+  files private, excluded from Git, and protected by operating-system account
+  security.
+- Existing JSON records may be incomplete or nonstandard. Review and clean
+  records before any future import; import tooling and conflict handling are
+  not yet implemented.
+- Automated installer/distribution packaging and real-desktop GUI acceptance
+  tests are not yet in place.
 
 ## Contributing
 

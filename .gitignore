@@ -2,6 +2,11 @@
 /student_records.json
 /teacher_records.json
 /academic_records.json
+/classes.json
+/subjects.json
+/academic_years.json
+/terms.json
+/enrollments.json
 /*.backup.json
 /telix.log
 **/*.backup.json

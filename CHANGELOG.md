@@ -6,6 +6,37 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
 
 ---
 
+## [1.2.0] - 2026-10-06: Academic setup foundation
+
+This is an incremental V1.x delivery. It does not complete the V1.1 or V1.2
+acceptance criteria.
+
+### Added
+
+- Managed class, subject, academic-year, and term catalogs with generated IDs,
+  validation, JSON persistence, and a dedicated Academic Setup tab.
+- Effective-dated student enrollments linked to explicit student, class, and
+  academic-year IDs. Overlapping enrollments within an academic year are
+  rejected; terms and enrollments must fit their academic year.
+- Service tests for catalog uniqueness, date and relationship validation,
+  enrollment history, and protected referenced records.
+
+### Changed
+
+- Student removal now also removes associated enrollment records, avoiding
+  orphaned enrollments. As with the existing JSON workflow, these file updates
+  are sequential and not one cross-file transaction.
+- README now distinguishes current V1 capabilities, progressive V1.x work,
+  and planned V2 platform capabilities. It documents the new Academic Setup
+  workflow without claiming that all V1 requirements are complete.
+
+### Security
+
+- Added ignore rules for the new local classes, subjects, academic years,
+  terms, and enrollment JSON files.
+
+---
+
 ## [1.1.0] - 2026-10-05: Modular restructure
 
 Goal: stop mixing responsibilities. Before this release one `SchoolManagementSystem` class built every screen and handled every button, and each `*Service` class also did file access, legacy-key conversion, validation and business rules. Now each module, class and function has one main job.
