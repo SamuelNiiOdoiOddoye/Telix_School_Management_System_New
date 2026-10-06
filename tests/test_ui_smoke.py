@@ -1,13 +1,33 @@
 """Headless-safe desktop startup and tab-registration smoke test."""
 
 import tkinter as tk
+import secrets
 
+from telix.authentication.service import AuthenticatedUser, AuthenticationService
+from telix.authentication.repository import UserRepository
+from telix.authentication.session import UserSession
+from telix.storage.json_store import JsonStore
 from telix.services.container import Services
-from telix.ui.app import SchoolManagementSystem, TAB_CLASSES
+from telix.ui.login import LoginScreen
+from telix.ui.app import ApplicationController, SchoolManagementSystem, TAB_CLASSES
 from tests.support import ServiceTestCase, valid_student, valid_teacher
 
 
 class DesktopStartupSmokeTests(ServiceTestCase):
+    @staticmethod
+    def _session() -> UserSession:
+        session = UserSession()
+        session.start(
+            AuthenticatedUser(
+                user_id="USR-TEST",
+                name="Test Administrator",
+                email="admin@example.invalid",
+                phone="+12025550123",
+                role="SUPER_ADMIN",
+            )
+        )
+        return session
+
     def test_application_window_and_registered_tabs_initialize(self) -> None:
         try:
             root = tk.Tk()
@@ -25,7 +45,7 @@ class DesktopStartupSmokeTests(ServiceTestCase):
                 self.finance,
                 self.removal,
             )
-            application = SchoolManagementSystem(root, services)
+            application = SchoolManagementSystem(root, services, self._session(), lambda: None)
             root.update()
             self.assertEqual(set(application.tabs), {tab.key for tab in TAB_CLASSES})
         finally:
@@ -48,7 +68,7 @@ class DesktopStartupSmokeTests(ServiceTestCase):
                 self.finance,
                 self.removal,
             )
-            application = SchoolManagementSystem(root, services)
+            application = SchoolManagementSystem(root, services, self._session(), lambda: None)
             reports = application.tabs["reports"]
             self.students.add(valid_student())
             self.students.add(valid_student(student_id="STU-002", status="Inactive"))
@@ -86,5 +106,129 @@ class DesktopStartupSmokeTests(ServiceTestCase):
             self.assertEqual(
                 reports.student_tree.item(empty_row[0], "values")[0], "No records found."
             )
+        finally:
+            root.destroy()
+
+    def test_main_application_requires_authentication_and_logout_clears_session(self) -> None:
+        try:
+            root = tk.Tk()
+        except tk.TclError as error:
+            self.skipTest(f"Tk desktop display is unavailable: {error}")
+        try:
+            root.withdraw()
+            services = Services(
+                self.students,
+                self.teachers,
+                self.academics,
+                self.assessments,
+                self.academic_structure,
+                self.attendance,
+                self.finance,
+                self.removal,
+            )
+            with self.assertRaisesRegex(ValueError, "authenticated session is required"):
+                SchoolManagementSystem(root, services, UserSession(), lambda: None)
+
+            session = self._session()
+            logged_out: list[bool] = []
+            application = SchoolManagementSystem(
+                root, services, session, lambda: logged_out.append(True)
+            )
+            application.logout()
+            self.assertFalse(session.authenticated)
+            self.assertEqual(logged_out, [True])
+        finally:
+            root.destroy()
+
+    def test_login_screen_rejects_bad_credentials_and_calls_success_handler(self) -> None:
+        try:
+            root = tk.Tk()
+        except tk.TclError as error:
+            self.skipTest(f"Tk desktop display is unavailable: {error}")
+        try:
+            root.withdraw()
+            auth = AuthenticationService(UserRepository(JsonStore(self.directory / "users.json")))
+            password = secrets.token_urlsafe(24)
+            auth.create_super_admin(
+                "Test Administrator",
+                "admin@example.invalid",
+                "+12025550123",
+                password,
+            )
+            received: list[AuthenticatedUser] = []
+            screen = LoginScreen(root, auth, received.append)
+            screen.email.set("admin@example.invalid")
+            screen.password.set(f"{password}-wrong")
+            screen._submit()
+            self.assertEqual(screen.message.get(), "Invalid email or password.")
+            self.assertEqual(received, [])
+
+            screen.email.set("unknown@example.invalid")
+            screen.password.set(secrets.token_urlsafe(24))
+            screen._submit()
+            self.assertEqual(screen.message.get(), "Invalid email or password.")
+
+            screen.email.set("admin@example.invalid")
+            screen.password.set(password)
+            screen._submit()
+            self.assertEqual(len(received), 1)
+            self.assertEqual(received[0].email, "admin@example.invalid")
+            self.assertEqual(screen.password.get(), "")
+        finally:
+            root.destroy()
+
+    def test_application_controller_wires_login_workspace_and_logout(self) -> None:
+        try:
+            root = tk.Tk()
+        except tk.TclError as error:
+            self.skipTest(f"Tk desktop display is unavailable: {error}")
+        try:
+            root.withdraw()
+            authentication = AuthenticationService(
+                UserRepository(JsonStore(self.directory / "users.json"))
+            )
+            password = secrets.token_urlsafe(24)
+            authentication.create_super_admin(
+                "Test Administrator",
+                "admin@example.invalid",
+                "+12025550123",
+                password,
+            )
+            services = Services(
+                self.students,
+                self.teachers,
+                self.academics,
+                self.assessments,
+                self.academic_structure,
+                self.attendance,
+                self.finance,
+                self.removal,
+            )
+            controller = ApplicationController(root, authentication, lambda: services)
+            controller.start()
+            root.update()
+            self.assertIsNotNone(controller.login_screen)
+            self.assertIsNone(controller.active_app)
+
+            login = controller.login_screen
+            assert login is not None
+            login.email.set("admin@example.invalid")
+            login.password.set(f"{password}-wrong")
+            login._submit()
+            self.assertIsNone(controller.active_app)
+
+            login.password.set(password)
+            login._submit()
+            root.update()
+            self.assertIsNone(controller.login_screen)
+            self.assertIsNotNone(controller.active_app)
+            session = controller.active_app.session
+            self.assertTrue(session.authenticated)
+
+            controller.active_app.logout()
+            root.update()
+            self.assertFalse(session.authenticated)
+            self.assertIsNone(controller.active_app)
+            self.assertIsNotNone(controller.login_screen)
         finally:
             root.destroy()

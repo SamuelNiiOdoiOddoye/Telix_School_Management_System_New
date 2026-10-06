@@ -7,6 +7,7 @@ Telix is a desktop school-records application built with Python and Tkinter. It 
 ## Contents
 
 - [Current features](#current-features)
+- [Authentication and first-run setup](#authentication-and-first-run-setup)
 - [How the application works](#how-the-application-works)
 - [Requirements and installation](#requirements-and-installation)
 - [Run the application](#run-the-application)
@@ -24,11 +25,25 @@ Telix is a desktop school-records application built with Python and Tkinter. It 
 
 ## Current features
 
+### Authentication
+
+- Requires a local Super Admin login before creating the school-management
+  workspace. Logging out clears the in-memory session and returns to login.
+- Compares account emails case-insensitively and uses the same failure message
+  for missing, disabled, and incorrectly authenticated accounts.
+- Stores salted `scrypt` password hashes only. Passwords are excluded from the
+  session object, reports, and application log messages.
+- Provides a one-time bootstrap command and refuses to overwrite an existing
+  Super Admin account.
+
+This is a single local desktop account, not V2 role-based access control, and
+does not protect files from someone with direct access to the computer.
+
 ### Dashboard
 
 - Displays total and active student counts, teacher count, and attendance percentage.
 - Shows expected fees, receipts, outstanding balance, salaries, other expenses,
-  and collected-cash profit or loss.
+  total expenses, and collected-cash profit or loss.
 - Provides quick navigation to student, teacher, academics, assessment,
   attendance, and finance workflows.
 - Refreshes the application views after successful record changes.
@@ -155,7 +170,8 @@ academic-period allocations, payment receipts, or audit trail.
 
 ### Typical workflow
 
-1. Start the app from the project root. The dashboard loads saved records and calculates its current summary.
+1. Bootstrap the first Super Admin if needed, launch the app, and sign in. The
+   dashboard then loads saved records and calculates its current summary.
 2. In **Students** or **Teachers**, complete the form and choose **Add Student** or **Add Teacher**. IDs are generated when blank; otherwise enter a unique ID.
 3. To edit a record, select its row in the table, change the form values, and choose **Update Selected**. The original ID is kept unchanged.
 4. Use the exact-ID search controls to find a student or teacher. The Students
@@ -201,6 +217,24 @@ python -m pip install -e ".[dev]"
 
 ## Run the application
 
+Create the initial local administrator once:
+
+```powershell
+python -m telix.bootstrap_admin
+```
+
+The command prompts for the administrator name, email, and phone, then prompts
+twice for a password without echoing it. Enter the Telix Super Admin details
+provided by the account owner. Passwords must be at least 12 characters. The
+password is never shown or stored in plaintext. Do not pass it as a
+command-line argument. Alternatively, set `TELIX_SUPERADMIN_NAME`,
+`TELIX_SUPERADMIN_EMAIL`, `TELIX_SUPERADMIN_PHONE`, and
+`TELIX_SUPERADMIN_PASSWORD` in the environment for a controlled automated
+bootstrap; unset the password variable afterward. If an account already
+exists, bootstrap makes no changes.
+
+Then launch:
+
 From the project root:
 
 ```powershell
@@ -239,10 +273,11 @@ These checks also run in GitHub Actions for pull requests and pushes.
 
 ### Manual desktop acceptance checklist
 
-There is not yet automated GUI acceptance coverage. Use the
+Automated Tk smoke tests cover startup, tab registration, login success/failure,
+logout, and report rendering. Use the
 [manual desktop acceptance checklist](tests/manual_acceptance.md) in a
-disposable copy of the repository; do not run acceptance scenarios against
-live school records.
+disposable copy of the repository for full acceptance; do not use live school
+records.
 
 ## Data files and privacy
 
@@ -259,8 +294,11 @@ The application reads and writes these files in the project root:
 | `terms.json` | Terms linked to academic years |
 | `enrollments.json` | Effective-dated student class enrollments |
 | `attendance_records.json` | Student attendance linked to the effective enrollment |
+| `assessment_records.json` | Per-student assessment component scores |
+| `grading_profiles.json` | Grading components, weights, and grade bands |
 | `payments.json` | Student payments and payment descriptions |
 | `expenses.json` | Categorized school expense entries |
+| `users.json` | Local account data; contains salted password hashes |
 
 If a file does not exist yet, it is treated as an empty record list. Before overwriting an existing file, the application copies it to the corresponding `*.backup.json` file. Saves are written to a temporary file in the same directory and then replace the main file. A backup is a recovery aid, not a substitute for regular off-device backups.
 
@@ -268,7 +306,10 @@ Money is held and calculated as `Decimal` in application code. New fee and salar
 
 These files may contain sensitive personal information about children, families, and staff. Keep them out of public repositories and untrusted backups. The `.gitignore` excludes the record files, legacy data directory, backups, logs, Python bytecode, local environments, and the bundled `ai changes/` directory from future untracked additions. The `ai changes/` directory is personal local material: it is intentionally not part of the project source. **Ignoring a path does not untrack files already committed or staged by Git.** Check tracked files and repository history before publishing; removing a sensitive file from the latest commit does not remove it from earlier commits.
 
-The application currently provides no user accounts, access controls, encryption at rest, or audit history. Use only in a controlled local environment with appropriate operating-system account security until those protections are implemented.
+The application provides one local Super Admin login, but has no encryption at
+rest, audit history, account recovery, or full role/permission management.
+Keep the repository and local data files private and use operating-system
+account security. The account file and its backups are ignored by Git.
 
 ## Architecture
 
@@ -280,7 +321,10 @@ The code is separated by responsibility:
 4. **`telix/attendance/`** — attendance validation, JSON repository, and service summaries linked to effective-dated enrollment.
 5. **`telix/finance/`** — expected fee, payment, balance, credit, salary, expense, and profit/loss calculations with ledger repositories and services.
 6. **`telix/services/`** — service construction and workflows spanning record types, including student deletion with linked academic and attendance records.
-7. **`telix/ui/`** — the Tkinter app shell, shared tab context, reusable forms and tables, feedback, and one tab module per screen, including **Academic Setup** and **Attendance**.
+7. **`telix/authentication/`** — local account persistence, salted password
+   hashing, login verification, and in-memory session state.
+8. **`telix/ui/`** — the login screen, Tkinter app shell, shared tab context,
+   reusable forms and tables, feedback, and one tab module per screen.
 
 The UI calls services; services apply business rules through repositories; repositories use the JSON storage layer. This keeps validation and record rules out of screen event handlers. `telix/ui/app.py` composes the services and registers the tabs. `main.py` and `telix/__main__.py` provide the two launch commands.
 
@@ -291,7 +335,9 @@ Telix_School_Management_System_new/
 ├── main.py
 ├── telix/
 │   ├── __main__.py
+│   ├── bootstrap_admin.py
 │   ├── config.py
+│   ├── authentication/
 │   ├── core/
 │   ├── storage/
 │   ├── students/
@@ -400,8 +446,8 @@ calculations, and assessment reporting are implemented. Teacher/subject
 assignments, academic summaries, and broader academic history/reporting remain
 outstanding.
 
-This phase remains local desktop V1 work. It does not add V2 authentication,
-multi-tenancy, APIs, or mobile apps.
+This phase remains local desktop V1 work. It does not add V2 multi-tenancy,
+APIs, or mobile apps.
 
 #### V1.3 — Attendance and student lifecycle
 
@@ -444,9 +490,11 @@ components over duplicated behavior.
 #### V1.7 — Testing, reliability, and release hardening
 
 **Status: In progress.** CI currently runs tests, Ruff lint and format checks,
-and mypy on Python 3.10 and 3.13. Existing automated tests cover core helpers,
-JSON storage, normalization, record services, finance calculations, selected
-workflows, and report UI rendering/filtering. The remaining work includes
+and mypy on Python 3.10 and 3.13. Local automated tests cover authentication,
+core helpers, JSON storage, normalization, record services, finance
+calculations, selected workflows, and report/login UI smoke tests. The latest
+CI checks reported on the open PR failed; their logs were unavailable during
+this verification. The remaining work includes resolving/confirming CI status,
 broader failure-path and workflow coverage, backup/restore and financial edge
 cases, full desktop acceptance, and clean-install verification.
 
@@ -457,21 +505,23 @@ and documentation meet its acceptance criteria.
 #### V1.8 — Documentation and release
 
 **Status: In progress.** This README documents the current product, its
-limitations, and the staged V1-to-V2 roadmap. Before declaring and tagging a
-V1 release, complete the V1 acceptance criteria, review documentation against
-the actual shipped behavior, and add release notes and practical screenshots,
-sample-data instructions, or diagrams where available. No V1 release tag is
-claimed by this roadmap.
+limitations, authentication setup, and the staged V1-to-V2 boundary. Local V1
+Super Admin login, logout, and secure bootstrap are implemented. Before
+declaring and tagging a V1 release, complete the full acceptance criteria,
+verify manual desktop workflows and clean-install behavior, confirm passing
+CI, and review documentation against the shipped behavior. No V1 release tag
+is claimed by this roadmap.
 
 ### V1 completion criteria
 
-V1 is not complete until the application reliably demonstrates core student
-and teacher records; managed classes, subjects, years, terms and enrollment;
-academics and student history; attendance and lifecycle workflows; fees,
-charges, payments, balances, expenses and accurate summaries; useful reports;
-coherent UI behavior; automated unit, service, repository and workflow tests;
-practical GUI acceptance coverage; passing CI/lint/format/type checks; and
-documentation consistent with the implementation.
+V1 is not complete until the application reliably demonstrates secure local
+Super Admin login/logout/bootstrap; core student and teacher records; managed
+classes, subjects, years, terms and enrollment; academics and student history;
+attendance and lifecycle workflows; fees, charges, payments, balances,
+expenses and accurate summaries; useful reports; coherent UI behavior;
+automated unit, service, repository and workflow tests; practical GUI
+acceptance coverage; passing CI/lint/format/type checks; and documentation
+consistent with the implementation.
 
 ## V2 — Telix platform
 
@@ -490,7 +540,9 @@ they are not current runtime dependencies.
 
 ### Planned identity and tenant capabilities
 
-- User accounts, authentication, and security management.
+- Cross-organization identity, role-based access control, authentication
+  management, and security administration beyond the single local V1 Super
+  Admin.
 - Role-based access control, permission scopes, organization membership, and
   audit logging, with authorization designed centrally rather than scattered
   across UI code.
@@ -511,8 +563,11 @@ be represented as current V1 features.
 
 ## Known limitations
 
-- The current application is local and single-user; it has no authentication,
-  roles, tenant isolation, or multi-user access.
+- The current application is local and single-user with one Super Admin
+  account. It has no role/permission management, tenant isolation, or
+  multi-user access. Authentication does not encrypt local JSON data at rest
+  or prevent access by a person who can read the account file or application
+  source on the same computer.
 - Local JSON persistence has no database constraints, inter-process locking,
   or transaction spanning multiple files. Student deletion updates academic
   and student records separately and may be interrupted partway through.

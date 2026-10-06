@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
+from typing import Callable
 
+from telix.authentication.service import AuthenticatedUser, AuthenticationService
+from telix.authentication.session import UserSession
 from telix.core.errors import StorageError
 from telix.services.container import Services, build_services
 from telix.ui.feedback import Feedback
+from telix.ui.login import LoginScreen
 from telix.ui.operations import OperationRunner
 from telix.ui.tabs.academics import AcademicsTab
 from telix.ui.tabs.assessments import AssessmentsTab
@@ -37,8 +41,18 @@ TAB_CLASSES: tuple[type[BaseTab], ...] = (
 
 
 class SchoolManagementSystem:
-    def __init__(self, master: tk.Tk, services: Services | None = None) -> None:
+    def __init__(
+        self,
+        master: tk.Tk,
+        services: Services | None,
+        session: UserSession,
+        on_logout: Callable[[], None],
+    ) -> None:
+        if not session.authenticated:
+            raise ValueError("An authenticated session is required to open Telix.")
         self.master = master
+        self.session = session
+        self._on_logout = on_logout
         self.master.title("Telix School Management System V1")
         self.master.geometry("1200x780")
         self.master.minsize(1080, 680)
@@ -59,17 +73,28 @@ class SchoolManagementSystem:
         self.refresh_all()
 
     def _build_header_and_tabs(self) -> None:
-        container = ttk.Frame(self.master, padding=16)
-        container.pack(fill="both", expand=True)
-        ttk.Label(container, text="Telix School Management System", style="Title.TLabel").pack(
+        self._container = ttk.Frame(self.master, padding=16)
+        self._container.pack(fill="both", expand=True)
+        header = ttk.Frame(self._container)
+        header.pack(fill="x")
+        heading = ttk.Frame(header)
+        heading.pack(side="left", fill="x", expand=True)
+        ttk.Label(heading, text="Telix School Management System", style="Title.TLabel").pack(
             anchor="w"
         )
         ttk.Label(
-            container,
+            heading,
             text="V1 · Student, teacher, academic, attendance, finance, and reporting workspace",
             style="Subtitle.TLabel",
         ).pack(anchor="w", pady=(0, 12))
-        self.notebook = ttk.Notebook(container)
+        user = self.session.user
+        assert user is not None
+        ttk.Button(
+            header,
+            text=f"Log out ({user.name})",
+            command=self.logout,
+        ).pack(side="right", anchor="n")
+        self.notebook = ttk.Notebook(self._container)
         self.notebook.pack(fill="both", expand=True)
         for tab_class in TAB_CLASSES:
             tab = tab_class(self.notebook, self._context)
@@ -86,11 +111,62 @@ class SchoolManagementSystem:
         except StorageError as error:
             self._feedback.error(str(error))
 
+    def logout(self) -> None:
+        self.session.clear()
+        self._container.destroy()
+        self._on_logout()
+
+
+class ApplicationController:
+    """Own the transition between the public login screen and protected workspace."""
+
+    def __init__(
+        self,
+        master: tk.Tk,
+        authentication: AuthenticationService,
+        services_factory: Callable[[], Services] | None = None,
+    ) -> None:
+        self.master = master
+        self.authentication = authentication
+        self.services_factory = services_factory or build_services
+        self.active_app: SchoolManagementSystem | None = None
+        self.login_screen: LoginScreen | None = None
+        configure_style(master)
+        master.geometry("720x480")
+        master.minsize(520, 400)
+
+    def start(self) -> None:
+        self.show_login()
+
+    def show_login(self) -> None:
+        self.active_app = None
+        self.master.title("Telix School Management System · Log in")
+        self.master.geometry("720x480")
+        self.master.minsize(520, 400)
+        self.login_screen = LoginScreen(self.master, self.authentication, self.show_application)
+
+    def show_application(self, user: AuthenticatedUser) -> None:
+        self.login_screen = None
+        session = UserSession()
+        session.start(user)
+        self.master.title("Telix School Management System V1")
+        self.master.geometry("1200x780")
+        self.master.minsize(1080, 680)
+        self.active_app = SchoolManagementSystem(
+            self.master,
+            self.services_factory(),
+            session,
+            self.show_login,
+        )
+
 
 def main() -> None:
     from telix.logging_config import configure_logging
 
     configure_logging()
     root = tk.Tk()
-    SchoolManagementSystem(root)
+    from telix.authentication.service import AuthenticationService
+
+    controller = ApplicationController(root, AuthenticationService())
+    controller.start()
     root.mainloop()

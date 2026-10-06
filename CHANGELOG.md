@@ -8,6 +8,12 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
 
 ### Added
 
+- Local Super Admin login/logout, in-memory authenticated sessions, account
+  persistence, and salted `scrypt` password hashing.
+- One-time administrator bootstrap via `python -m telix.bootstrap_admin`, with
+  hidden password entry and protection against replacing an existing account.
+- Authentication and session tests, plus UI smoke coverage for login, logout,
+  and blocking the main application without an authenticated session.
 - Basic attendance CRUD and history filters for date, student, and class, with
   status counts and an attendance percentage that excludes Excused records.
 - Student payment and expense ledgers with Decimal-safe summaries for receipts,
@@ -45,6 +51,7 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
 - Added transfer/promotion and withdrawal controls to the enrollment editor.
 - Expanded the Finance tab for payment/expense maintenance and the Reports tab
   for attendance, finance, and CSV export.
+- Added total expenses to the dashboard.
 - Refreshed the README and manual acceptance checklist to reflect available
   lifecycle/status/report functionality without claiming the V1 phases complete.
 

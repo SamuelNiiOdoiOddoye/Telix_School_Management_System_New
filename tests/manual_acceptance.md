@@ -6,6 +6,17 @@ creates backups on writes. Do not test against a live data directory.
 
 ## Current V1 workflows
 
+- [ ] In a disposable checkout with no `users.json`, run
+      `python -m telix.bootstrap_admin`. Enter the assigned Super Admin name,
+      email, and phone; enter a unique password of at least 12 characters at
+      both hidden prompts. Confirm the command reports account creation without
+      echoing the password and creates an ignored `users.json`.
+- [ ] Run bootstrap again and confirm it does not prompt for or replace the
+      existing account.
+- [ ] Launch with `python .\main.py` and verify login appears before any school
+      management tabs. Try an unknown email, wrong password, and the correct
+      email with different letter casing. Failures should show the same generic
+      error; only valid credentials should open the workspace.
 - [ ] Launch with `python .\main.py` and confirm the window opens with
       Dashboard, Students, Teachers, Academic Records, Assessments, Academic
       Setup, Attendance, Reports, and Finance tabs.
@@ -70,6 +81,9 @@ creates backups on writes. Do not test against a live data directory.
 - [ ] Add a categorized school expense and verify it affects other expenses,
       total expenses, and profit/loss. Select/update/delete the expense and
       confirm the summary changes.
+- [ ] Verify the dashboard shows total expenses as salaries plus other
+      expenses, and that the displayed profit/loss matches collected payments
+      less total expenses.
 - [ ] Open Reports and check the attendance and financial tables. Export the
       student, academic, attendance, and finance reports to CSV; verify each
       file has headings and the visible report rows.
@@ -77,6 +91,9 @@ creates backups on writes. Do not test against a live data directory.
       subject/term/year, attendance status/date range, and finance category/date
       range. Verify each filter independently and confirm unmatched filters show
       an empty-state message rather than stale rows.
+- [ ] Close and relaunch the application while the synthetic records still
+      exist. Log in and confirm the saved student, teacher, assessment,
+      attendance, and finance entries persist.
 - [ ] Attempt to delete the student while a payment exists. Confirm deletion is
       blocked and the student's academic/enrollment/attendance data remains.
 - [ ] Delete the test payments before deleting the student; verify finance
@@ -89,6 +106,9 @@ creates backups on writes. Do not test against a live data directory.
       after confirming the enrollment has been removed.
 - [ ] Close and relaunch the application; confirm the disposable records are
       gone and no unexpected errors appeared.
+- [ ] Log out and confirm the login screen returns and the protected tabs are
+      no longer visible. Log in again and confirm deleted synthetic records do
+      not reappear.
 
 ## Not yet available for manual acceptance
 

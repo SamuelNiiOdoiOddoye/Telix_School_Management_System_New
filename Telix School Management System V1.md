@@ -101,3 +101,19 @@ In V1 Fix the following :
 &#x09;
 
 **LINK ALL TABLES SO WE CAN SEE OUTPUTS FOR SOMETHING LIKE STUDENT DETAILS, PARENT DETAILS, TEACHER DETAILS, ACADEMIC RECORDS AND ALL OTHER RELEVANT DATA**
+
+## V1 local authentication and release-hardening addition (2026-10-06)
+
+The local desktop app requires a Super Admin login before opening the school
+workspace. The initial account is created with `python -m
+telix.bootstrap_admin`; the password is entered through a hidden prompt and
+stored only as a salted `scrypt` hash in the ignored local `users.json` file.
+Login errors do not distinguish missing users from incorrect passwords, and
+logout clears the in-memory session.
+
+This addition is limited to one local desktop Super Admin. It does not introduce
+V2 organizations, tenant isolation, hosted services, APIs, multi-user roles,
+permission scopes, or subscription behavior. The local JSON data remains
+unencrypted at rest and accessible to operating-system users who can read the
+files. Full V1 manual acceptance and release checks are still required before
+calling V1 release-ready.

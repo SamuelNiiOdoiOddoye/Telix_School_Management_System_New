@@ -19,6 +19,7 @@ CARDS = (
     ("Outstanding Balance", "outstanding"),
     ("Teacher Salaries", "salaries"),
     ("Other Expenses", "expenses"),
+    ("Total Expenses", "total_expenses"),
     ("Profit / Loss", "result"),
 )
 QUICK_ACTIONS = (
@@ -48,6 +49,7 @@ class DashboardTab(BaseTab):
             "outstanding": tk.StringVar(value=format_currency(0)),
             "salaries": tk.StringVar(value=format_currency(0)),
             "expenses": tk.StringVar(value=format_currency(0)),
+            "total_expenses": tk.StringVar(value=format_currency(0)),
             "result": tk.StringVar(value=format_currency(0)),
         }
         self._build_heading()
@@ -103,4 +105,5 @@ class DashboardTab(BaseTab):
         self.metrics["outstanding"].set(format_currency(summary["outstanding_balances"]))
         self.metrics["salaries"].set(format_currency(summary["salary_expense"]))
         self.metrics["expenses"].set(format_currency(summary["other_expenses"]))
+        self.metrics["total_expenses"].set(format_currency(summary["total_expenses"]))
         self.metrics["result"].set(format_currency(summary["profit_or_loss"]))

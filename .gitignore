@@ -12,6 +12,7 @@
 /expenses.json
 /assessment_records.json
 /grading_profiles.json
+/users.json
 /*.backup.json
 /telix.log
 **/*.backup.json
