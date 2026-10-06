@@ -39,7 +39,13 @@ class FinanceLedgerService:
         self._student_exists = student_exists or (lambda _student_id: False)
 
     def list(
-        self, kind: LedgerKind, *, student_id: str = "", start_date: str = "", end_date: str = ""
+        self,
+        kind: LedgerKind,
+        *,
+        student_id: str = "",
+        start_date: str = "",
+        end_date: str = "",
+        category: str = "",
     ) -> builtins.list[dict[str, Any]]:
         start = _iso_date(start_date, "Start date") if start_date else ""
         end = _iso_date(end_date, "End date") if end_date else ""
@@ -47,6 +53,7 @@ class FinanceLedgerService:
             raise ValidationError("Start date must be on or before end date.")
         target_student = student_id.strip().casefold()
         date_field = "payment_date" if kind == "payment" else "expense_date"
+        target_category = category.strip().casefold()
         records = self._repository.list(kind)
         return [
             record
@@ -56,6 +63,11 @@ class FinanceLedgerService:
             )
             and (not start or str(record.get(date_field, "")) >= start)
             and (not end or str(record.get(date_field, "")) <= end)
+            and (
+                kind != "expense"
+                or not target_category
+                or str(record.get("category", "")).casefold() == target_category
+            )
         ]
 
     def add_payment(self, values: Mapping[str, object]) -> dict[str, Any]:

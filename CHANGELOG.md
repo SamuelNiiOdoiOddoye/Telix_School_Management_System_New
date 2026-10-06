@@ -15,6 +15,11 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
   profit/loss.
 - Attendance and finance report tables, expanded dashboard financial metrics,
   and CSV export for displayed reports.
+- Student Active/Inactive/Withdrawn status, status filtering and transition
+  validation, expanded dashboard metrics, and student/teacher/academic/
+  attendance/finance report filters.
+- Shared table empty-state feedback and a UI smoke test for report rendering
+  and filtering.
 - Attendance linkage to the effective student enrollment and academic year;
   duplicate student/date entries and dates outside the valid enrollment period
   are rejected.
@@ -40,8 +45,8 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
 - Added transfer/promotion and withdrawal controls to the enrollment editor.
 - Expanded the Finance tab for payment/expense maintenance and the Reports tab
   for attendance, finance, and CSV export.
-- Updated the README and manual checklist to describe attendance as partial V1.3
-  functionality, not as completion of the student lifecycle phase.
+- Refreshed the README and manual acceptance checklist to reflect available
+  lifecycle/status/report functionality without claiming the V1 phases complete.
 
 ### Security
 

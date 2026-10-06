@@ -17,6 +17,7 @@ def normalise_student(record: dict[str, Any]) -> dict[str, Any]:
         "date_of_birth": clean_text(first_value(record, "date_of_birth", "DOB")),
         "class_name": clean_text(first_value(record, "class_name", "Class")),
         "fees": parsed_fees if parsed_fees is not None else fees,
+        "status": clean_text(first_value(record, "status", "Status", default="Active")) or "Active",
         "gender": clean_text(first_value(record, "gender", "Gender")),
         "address": clean_text(first_value(record, "address", "Address")),
         "phone": clean_text(first_value(record, "phone", "Contact")),

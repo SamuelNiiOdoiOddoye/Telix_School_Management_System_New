@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
+from telix.core.errors import ValidationError
 from telix.core.validators import (
     require_fields,
     validate_amount,
@@ -11,7 +12,11 @@ from telix.core.validators import (
     validate_email,
     validate_phone,
 )
-from telix.students.schema import STUDENT_FIELD_LABELS
+from telix.students.schema import (
+    DEFAULT_STUDENT_STATUS,
+    STUDENT_FIELD_LABELS,
+    STUDENT_STATUSES,
+)
 
 MINIMUM_STUDENT_AGE = 3
 MAXIMUM_STUDENT_AGE = 25
@@ -21,7 +26,12 @@ def prepare_student(values: Mapping[str, object]) -> dict[str, Any]:
     required_values = {
         field_name: values.get(field_name, "") for field_name in STUDENT_FIELD_LABELS
     }
+    if not str(required_values["status"]).strip():
+        required_values["status"] = DEFAULT_STUDENT_STATUS
     cleaned = require_fields(required_values, STUDENT_FIELD_LABELS)
+    status = cleaned["status"].title() if cleaned["status"] else DEFAULT_STUDENT_STATUS
+    if status not in STUDENT_STATUSES:
+        raise ValidationError(f"Student status must be one of: {', '.join(STUDENT_STATUSES)}.")
     return {
         "student_id": cleaned["student_id"].upper(),
         "name": cleaned["name"],
@@ -33,6 +43,7 @@ def prepare_student(values: Mapping[str, object]) -> dict[str, Any]:
         ),
         "class_name": cleaned["class_name"],
         "fees": validate_amount(cleaned["fees"], "School fees"),
+        "status": status,
         "gender": cleaned["gender"],
         "address": cleaned["address"],
         "phone": validate_phone(cleaned["phone"], "Student phone number"),

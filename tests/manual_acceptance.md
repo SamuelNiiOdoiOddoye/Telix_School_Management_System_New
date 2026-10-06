@@ -15,6 +15,9 @@ creates backups on writes. Do not test against a live data directory.
       `student@example.invalid`, medical information `None`, parent/guardian
       name `Test Guardian`, and parent/guardian phone `+10000000003`).
 - [ ] Search for that student by ID and verify the row and form are populated.
+- [ ] Change the student status to Inactive and verify the status filter and
+      Reports table; change it back to Active. Withdraw the student and confirm
+      that reactivation must be explicit before setting Active again.
 - [ ] Change a non-ID field, update the record, and verify the changed value
       persists after navigating away and returning.
 - [ ] Attempt to add a duplicate student ID and confirm a clear validation
@@ -70,6 +73,10 @@ creates backups on writes. Do not test against a live data directory.
 - [ ] Open Reports and check the attendance and financial tables. Export the
       student, academic, attendance, and finance reports to CSV; verify each
       file has headings and the visible report rows.
+- [ ] Filter Reports by student ID/status, teacher ID/name, academic
+      subject/term/year, attendance status/date range, and finance category/date
+      range. Verify each filter independently and confirm unmatched filters show
+      an empty-state message rather than stale rows.
 - [ ] Attempt to delete the student while a payment exists. Confirm deletion is
       blocked and the student's academic/enrollment/attendance data remains.
 - [ ] Delete the test payments before deleting the student; verify finance
@@ -85,8 +92,8 @@ creates backups on writes. Do not test against a live data directory.
 
 ## Not yet available for manual acceptance
 
-Teacher/subject assignments, dedicated student transfers/promotions/withdrawals,
-invoices and academic-period payment allocations remain roadmap items. Do not
+Teacher/subject assignments, a consolidated student lifecycle timeline,
+invoices, and academic-period payment allocations remain roadmap items. Do not
 mark those items accepted until their UI and service workflows are implemented
-and tested. Attendance's automated service tests do not replace the real-desktop
+and tested. Automated service and UI smoke tests do not replace the real-desktop
 checklist above.

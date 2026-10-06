@@ -32,19 +32,33 @@ class AttendanceService:
         self,
         *,
         attendance_date: str = "",
+        start_date: str = "",
+        end_date: str = "",
         student_id: str = "",
         class_id: str = "",
+        status: str = "",
     ) -> builtins.list[dict[str, Any]]:
+        date_filters = {
+            "Attendance filter date": attendance_date.strip(),
+            "Attendance start date": start_date.strip(),
+            "Attendance end date": end_date.strip(),
+        }
+        for label, value in date_filters.items():
+            if value:
+                try:
+                    parsed_date = date.fromisoformat(value)
+                except ValueError as error:
+                    raise ValidationError(f"{label} must use the format YYYY-MM-DD.") from error
+                if parsed_date.isoformat() != value:
+                    raise ValidationError(f"{label} must use the format YYYY-MM-DD.")
+        if start_date and end_date and start_date > end_date:
+            raise ValidationError("Attendance start date must be on or before the end date.")
         attendance_date = attendance_date.strip()
-        if attendance_date:
-            try:
-                parsed_date = date.fromisoformat(attendance_date)
-            except ValueError as error:
-                raise ValidationError(
-                    "Attendance filter date must use the format YYYY-MM-DD."
-                ) from error
-            if parsed_date.isoformat() != attendance_date:
-                raise ValidationError("Attendance filter date must use the format YYYY-MM-DD.")
+        normalized_status = status.strip().title()
+        if normalized_status and normalized_status not in ATTENDANCE_STATUSES:
+            raise ValidationError(
+                f"Attendance status must be one of: {', '.join(ATTENDANCE_STATUSES)}."
+            )
         records = self._repository.list()
         target_student = student_id.strip().casefold()
         target_class = class_id.strip().casefold()
@@ -52,6 +66,9 @@ class AttendanceService:
             record
             for record in records
             if (not attendance_date or record.get("attendance_date") == attendance_date)
+            and (not start_date or str(record.get("attendance_date", "")) >= start_date)
+            and (not end_date or str(record.get("attendance_date", "")) <= end_date)
+            and (not normalized_status or record.get("status") == normalized_status)
             and (
                 not target_student or str(record.get("student_id", "")).casefold() == target_student
             )

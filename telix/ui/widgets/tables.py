@@ -29,7 +29,19 @@ def create_tree(parent: ttk.Frame, columns: Sequence[str], widths: Sequence[int]
 def replace_rows(tree: ttk.Treeview, rows: Iterable[tuple[str, Sequence[Any]]]) -> None:
     """Replace the table contents with ``(row id, values)`` pairs."""
     tree.delete(*tree.get_children())
-    for row_id, values in rows:
+    prepared_rows = list(rows)
+    if not prepared_rows:
+        columns = tree["columns"]
+        tree.tag_configure("empty", foreground="#777777")
+        tree.insert(
+            "",
+            "end",
+            iid="__telix_empty_state__",
+            values=("No records found.", *("" for _ in columns[1:])),
+            tags=("empty",),
+        )
+        return
+    for row_id, values in prepared_rows:
         tree.insert("", "end", iid=row_id, values=tuple(values))
 
 

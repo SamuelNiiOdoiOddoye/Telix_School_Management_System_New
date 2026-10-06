@@ -124,6 +124,25 @@ class AttendanceServiceTests(ServiceTestCase):
             self.attendance.list(attendance_date="10/06/2026")
         self.assertEqual(record["status"], "Present")
 
+    def test_filters_by_date_range_and_status(self) -> None:
+        self._add("Present", attendance_date="2026-10-06")
+        self._add("Absent", attendance_date="2026-10-07")
+        self._add("Late", attendance_date="2026-10-08")
+
+        self.assertEqual(
+            [
+                record["status"]
+                for record in self.attendance.list(
+                    start_date="2026-10-07",
+                    end_date="2026-10-08",
+                    status="late",
+                )
+            ],
+            ["Late"],
+        )
+        with self.assertRaisesRegex(ValidationError, "on or before"):
+            self.attendance.list(start_date="2026-10-08", end_date="2026-10-07")
+
     def test_summary_excludes_excused_records_from_percentage(self) -> None:
         self._add("Present", attendance_date="2026-10-06")
         self._add("Late", attendance_date="2026-10-07")

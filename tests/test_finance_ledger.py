@@ -78,6 +78,52 @@ class FinanceLedgerTests(ServiceTestCase):
             Decimal("5.50"),
         )
 
+    def test_ledger_filters_by_date_range_and_expense_category(self) -> None:
+        self.finance.add_payment(
+            {
+                "student_id": "STU-001",
+                "payment_date": "2026-10-01",
+                "amount": "20",
+                "description": "First payment",
+            }
+        )
+        self.finance.add_payment(
+            {
+                "student_id": "STU-001",
+                "payment_date": "2026-10-10",
+                "amount": "30",
+                "description": "Second payment",
+            }
+        )
+        self.finance.add_expense(
+            {
+                "expense_date": "2026-10-03",
+                "category": "Utilities",
+                "description": "Power",
+                "amount": "10",
+            }
+        )
+        self.finance.add_expense(
+            {
+                "expense_date": "2026-10-04",
+                "category": "Supplies",
+                "description": "Books",
+                "amount": "15",
+            }
+        )
+
+        payments = self.finance.list("payment", start_date="2026-10-01", end_date="2026-10-05")
+        expenses = self.finance.list(
+            "expense",
+            start_date="2026-10-01",
+            end_date="2026-10-05",
+            category="utilities",
+        )
+
+        self.assertEqual(len(payments), 1)
+        self.assertEqual(len(expenses), 1)
+        self.assertEqual(expenses[0]["category"], "Utilities")
+
     def test_payment_filters_delete_and_student_deletion_guard(self) -> None:
         payment = self.finance.add_payment(
             {"student_id": "STU-001", "payment_date": "2026-10-01", "amount": "10"}

@@ -7,15 +7,25 @@ import tkinter as tk
 from tkinter import filedialog, ttk
 from typing import Any
 
-from telix.core.errors import StorageError
+from telix.attendance.rules import ATTENDANCE_STATUSES
+from telix.core.errors import StorageError, ValidationError
 from telix.core.formatting import format_currency
 from telix.core.numbers import as_amount
 from telix.reports.csv_export import write_csv_report
+from telix.students.schema import STUDENT_STATUSES
 from telix.ui.tabs.base import BaseTab, TabContext
 from telix.ui.widgets.tables import create_tree, render_records, replace_rows
 
-STUDENT_COLUMNS = ("student_id", "name", "class_name", "parent_name", "parent_phone", "email")
-STUDENT_WIDTHS = (140, 200, 100, 200, 150, 230)
+STUDENT_COLUMNS = (
+    "student_id",
+    "name",
+    "class_name",
+    "status",
+    "parent_name",
+    "parent_phone",
+    "email",
+)
+STUDENT_WIDTHS = (120, 180, 90, 90, 170, 130, 190)
 TEACHER_COLUMNS = ("teacher_id", "name", "class_name", "phone", "email", "emergency_contact")
 TEACHER_WIDTHS = (140, 200, 150, 140, 240, 160)
 ACADEMIC_COLUMNS = (
@@ -43,6 +53,16 @@ class ReportsTab(BaseTab):
     def __init__(self, notebook: ttk.Notebook, context: TabContext) -> None:
         super().__init__(notebook, context)
         self.class_filter = tk.StringVar()
+        self.student_status_filter = tk.StringVar(value="All")
+        self.student_id_filter = tk.StringVar()
+        self.teacher_filter = tk.StringVar()
+        self.academic_query = tk.StringVar()
+        self.attendance_status_filter = tk.StringVar(value="All")
+        self.attendance_start = tk.StringVar()
+        self.attendance_end = tk.StringVar()
+        self.finance_category_filter = tk.StringVar(value="All")
+        self.finance_start = tk.StringVar()
+        self.finance_end = tk.StringVar()
         self.attendance_summary = tk.StringVar(value="No attendance records.")
         self.finance_summary = tk.StringVar(value="No financial ledger entries.")
         self._build_toolbar()
@@ -58,7 +78,59 @@ class ReportsTab(BaseTab):
             tools, textvariable=self.class_filter, width=20, state="readonly"
         )
         self.class_filter_box.grid(row=0, column=1, padx=(8, 8))
-        ttk.Button(tools, text="Refresh Reports", command=self.refresh).grid(row=0, column=2)
+        ttk.Label(tools, text="Student status").grid(row=0, column=2, sticky="w")
+        self.student_status_box = ttk.Combobox(
+            tools,
+            textvariable=self.student_status_filter,
+            values=("All", *STUDENT_STATUSES),
+            state="readonly",
+            width=14,
+        )
+        self.student_status_box.grid(row=0, column=3, padx=(8, 8))
+        ttk.Button(tools, text="Refresh Reports", command=self.refresh).grid(row=0, column=4)
+        ttk.Label(tools, text="Student ID").grid(row=0, column=5, sticky="w")
+        ttk.Entry(tools, textvariable=self.student_id_filter, width=16).grid(
+            row=0, column=6, padx=(6, 8)
+        )
+        ttk.Label(tools, text="Teacher ID/name").grid(row=0, column=7, sticky="w")
+        ttk.Entry(tools, textvariable=self.teacher_filter, width=18).grid(
+            row=0, column=8, padx=(6, 0)
+        )
+        ttk.Label(tools, text="Academic subject/term/year").grid(
+            row=1, column=0, sticky="w", pady=(8, 0)
+        )
+        ttk.Entry(tools, textvariable=self.academic_query, width=28).grid(
+            row=1, column=1, columnspan=2, sticky="w", padx=(8, 8), pady=(8, 0)
+        )
+        ttk.Label(tools, text="Attendance status").grid(row=1, column=3, sticky="w", pady=(8, 0))
+        ttk.Combobox(
+            tools,
+            textvariable=self.attendance_status_filter,
+            values=("All", *ATTENDANCE_STATUSES),
+            state="readonly",
+            width=12,
+        ).grid(row=1, column=4, sticky="w", padx=(6, 8), pady=(8, 0))
+        ttk.Label(tools, text="From").grid(row=1, column=5, sticky="e", pady=(8, 0))
+        ttk.Entry(tools, textvariable=self.attendance_start, width=12).grid(
+            row=1, column=6, sticky="w", padx=(6, 8), pady=(8, 0)
+        )
+        ttk.Label(tools, text="To").grid(row=1, column=7, sticky="e", pady=(8, 0))
+        ttk.Entry(tools, textvariable=self.attendance_end, width=12).grid(
+            row=1, column=8, sticky="w", padx=(6, 0), pady=(8, 0)
+        )
+        ttk.Label(tools, text="Finance category").grid(row=2, column=0, sticky="w", pady=(8, 0))
+        self.finance_category_box = ttk.Combobox(
+            tools, textvariable=self.finance_category_filter, state="readonly", width=18
+        )
+        self.finance_category_box.grid(row=2, column=1, sticky="w", padx=(8, 8), pady=(8, 0))
+        ttk.Label(tools, text="From").grid(row=2, column=2, sticky="e", pady=(8, 0))
+        ttk.Entry(tools, textvariable=self.finance_start, width=12).grid(
+            row=2, column=3, sticky="w", padx=(6, 8), pady=(8, 0)
+        )
+        ttk.Label(tools, text="To").grid(row=2, column=4, sticky="e", pady=(8, 0))
+        ttk.Entry(tools, textvariable=self.finance_end, width=12).grid(
+            row=2, column=5, sticky="w", padx=(6, 8), pady=(8, 0)
+        )
 
     def _build_report_tables(self) -> None:
         self.notebook = ttk.Notebook(self.frame)
@@ -118,24 +190,66 @@ class ReportsTab(BaseTab):
     def refresh(self) -> None:
         try:
             services = self.context.services
-            students_all = services.students.list()
             self.class_filter_box["values"] = ["All", *services.students.classes()]
             if self.class_filter.get() not in self.class_filter_box["values"]:
                 self.class_filter.set("All")
+            if self.student_status_filter.get() not in self.student_status_box["values"]:
+                self.student_status_filter.set("All")
             selected_class = (
                 "" if self.class_filter.get() in {"", "All"} else self.class_filter.get()
             )
-            students = services.students.by_class(selected_class)
+            selected_status = (
+                ""
+                if self.student_status_filter.get() == "All"
+                else self.student_status_filter.get()
+            )
+            students = services.students.by_status(selected_status)
+            student_query = self.student_id_filter.get().strip().casefold()
+            if student_query:
+                students = [
+                    student
+                    for student in students
+                    if student_query in student["student_id"].casefold()
+                ]
+            if selected_class:
+                students = [
+                    student
+                    for student in students
+                    if student["class_name"].casefold() == selected_class.casefold()
+                ]
+            teachers = services.teachers.list()
+            teacher_query = self.teacher_filter.get().strip().casefold()
+            if teacher_query:
+                teachers = [
+                    teacher
+                    for teacher in teachers
+                    if teacher_query in teacher["teacher_id"].casefold()
+                    or teacher_query in teacher["name"].casefold()
+                ]
+            categories = sorted({row["category"] for row in services.finance.list("expense")})
+            category_options = ["All", *categories]
+            self.finance_category_box["values"] = category_options
+            if self.finance_category_filter.get() not in category_options:
+                self.finance_category_filter.set("All")
             render_records(self.student_tree, students, STUDENT_COLUMNS)
-            render_records(self.teacher_tree, services.teachers.list(), TEACHER_COLUMNS)
-            self._render_academic_report(students)
-            self._render_assessments(students)
-            self._render_attendance(students_all, selected_class)
+            render_records(self.teacher_tree, teachers, TEACHER_COLUMNS)
+            academic_query = self.academic_query.get().strip().casefold()
+            self._render_academic_report(students, academic_query)
+            self._render_assessments(students, academic_query)
+            self._render_attendance(
+                students,
+                selected_class,
+                self.attendance_start.get().strip(),
+                self.attendance_end.get().strip(),
+                ""
+                if self.attendance_status_filter.get() == "All"
+                else self.attendance_status_filter.get(),
+            )
             self._render_finance()
-        except StorageError as error:
+        except (StorageError, ValidationError) as error:
             self.context.feedback.error(str(error))
 
-    def _render_academic_report(self, students: list[dict[str, Any]]) -> None:
+    def _render_academic_report(self, students: list[dict[str, Any]], query: str = "") -> None:
         students_by_id = {str(student["student_id"]).casefold(): student for student in students}
         rows = (
             (
@@ -144,10 +258,17 @@ class ReportsTab(BaseTab):
             )
             for record in self.context.services.academics.list()
             if str(record["student_id"]).casefold() in students_by_id
+            and (
+                not query
+                or any(
+                    query in str(record.get(field, "")).casefold()
+                    for field in ("subject", "term", "academic_year")
+                )
+            )
         )
         replace_rows(self.academic_tree, rows)
 
-    def _render_assessments(self, students: list[dict[str, Any]]) -> None:
+    def _render_assessments(self, students: list[dict[str, Any]], query: str = "") -> None:
         visible_ids = {str(student["student_id"]).casefold() for student in students}
         replace_rows(
             self.assessment_tree,
@@ -158,6 +279,13 @@ class ReportsTab(BaseTab):
                 )
                 for record in self.context.services.assessments.list()
                 if str(record["student_id"]).casefold() in visible_ids
+                and (
+                    not query
+                    or any(
+                        query in str(record.get(field, "")).casefold()
+                        for field in ("subject", "term", "academic_year")
+                    )
+                )
             ),
         )
 
@@ -173,7 +301,14 @@ class ReportsTab(BaseTab):
             record["academic_year"],
         )
 
-    def _render_attendance(self, students: list[dict[str, Any]], class_name: str) -> None:
+    def _render_attendance(
+        self,
+        students: list[dict[str, Any]],
+        class_name: str,
+        start_date: str = "",
+        end_date: str = "",
+        status: str = "",
+    ) -> None:
         student_names = {
             str(student["student_id"]).casefold(): student["name"] for student in students
         }
@@ -181,7 +316,11 @@ class ReportsTab(BaseTab):
             str(item["class_id"]).casefold(): item["name"]
             for item in self.context.services.academic_structure.list("class")
         }
-        records = self.context.services.attendance.list()
+        records = self.context.services.attendance.list(
+            start_date=start_date,
+            end_date=end_date,
+            status=status,
+        )
         visible = [
             record
             for record in records
@@ -218,8 +357,26 @@ class ReportsTab(BaseTab):
 
     def _render_finance(self) -> None:
         ledger = self.context.services.finance
-        payments = ledger.list("payment")
-        expenses = ledger.list("expense")
+        start_date = self.finance_start.get().strip()
+        end_date = self.finance_end.get().strip()
+        category = (
+            ""
+            if self.finance_category_filter.get() == "All"
+            else self.finance_category_filter.get()
+        )
+        student_id = self.student_id_filter.get().strip()
+        payments = ledger.list(
+            "payment",
+            student_id=student_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        expenses = ledger.list(
+            "expense",
+            start_date=start_date,
+            end_date=end_date,
+            category=category,
+        )
         students = {
             str(student["student_id"]).casefold(): student["name"]
             for student in self.context.services.students.list()
@@ -256,7 +413,7 @@ class ReportsTab(BaseTab):
             self.context.services.students.list(), self.context.services.teachers.list()
         )
         self.finance_summary.set(
-            f"Expected: {format_currency(summary['expected_fee_income'])} · "
+            f"School-to-date expected: {format_currency(summary['expected_fee_income'])} · "
             f"Received: {format_currency(summary['received_income'])} · "
             f"Outstanding: {format_currency(summary['outstanding_balances'])} · "
             f"Credit: {format_currency(summary['student_credit'])} · "
@@ -285,7 +442,11 @@ class ReportsTab(BaseTab):
             write_csv_report(
                 Path(target),
                 [tree.heading(column, "text") for column in tree["columns"]],
-                (tree.item(item_id, "values") for item_id in tree.get_children()),
+                (
+                    tree.item(item_id, "values")
+                    for item_id in tree.get_children()
+                    if "empty" not in tree.item(item_id, "tags")
+                ),
             )
         except OSError as error:
             self.context.feedback.error(f"Could not export this report: {error}")

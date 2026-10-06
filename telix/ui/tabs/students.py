@@ -11,6 +11,7 @@ from telix.core.formatting import format_currency
 from telix.core.identifiers import generate_id
 from telix.core.numbers import as_amount
 from telix.students.schema import STUDENT_FIELD_LABELS
+from telix.students.schema import STUDENT_STATUSES
 from telix.ui.tabs.base import BaseTab, TabContext
 from telix.ui.widgets.forms import add_button_row, add_search_entry, build_form_fields
 from telix.ui.widgets.tables import create_tree, replace_rows
@@ -21,6 +22,7 @@ FORM_FIELDS = (
     ("date_of_birth", "Date of birth (YYYY-MM-DD)"),
     ("class_name", "Class"),
     ("fees", "School fees (GHS)"),
+    ("status", "Status"),
     ("gender", "Gender"),
     ("address", "Address"),
     ("phone", "Student phone"),
@@ -30,8 +32,8 @@ FORM_FIELDS = (
     ("parent_phone", "Parent / guardian phone"),
 )
 GENDER_CHOICES = ("Female", "Male", "Other")
-TABLE_COLUMNS = ("student_id", "name", "class_name", "phone", "parent_name", "fees")
-TABLE_WIDTHS = (140, 210, 90, 140, 200, 110)
+TABLE_COLUMNS = ("student_id", "name", "class_name", "status", "phone", "parent_name", "fees")
+TABLE_WIDTHS = (140, 190, 90, 100, 140, 180, 110)
 
 
 class StudentsTab(BaseTab):
@@ -52,7 +54,12 @@ class StudentsTab(BaseTab):
     def _build_form(self) -> None:
         form = ttk.LabelFrame(self.frame, text="Student details", padding=12)
         form.pack(fill="x")
-        rows = build_form_fields(form, FORM_FIELDS, self.variables, {"gender": GENDER_CHOICES})
+        rows = build_form_fields(
+            form,
+            FORM_FIELDS,
+            self.variables,
+            {"gender": GENDER_CHOICES, "status": STUDENT_STATUSES},
+        )
         add_button_row(
             form,
             (
@@ -76,6 +83,19 @@ class StudentsTab(BaseTab):
             row=0, column=5, padx=(0, 8)
         )
         ttk.Button(tools, text="Show All", command=self.show_all).grid(row=0, column=6)
+        ttk.Label(tools, text="Status").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        self.status_filter = tk.StringVar(value="All")
+        self.status_filter_box = ttk.Combobox(
+            tools,
+            textvariable=self.status_filter,
+            values=("All", *STUDENT_STATUSES),
+            state="readonly",
+            width=18,
+        )
+        self.status_filter_box.grid(row=1, column=1, sticky="w", pady=(8, 0))
+        ttk.Button(tools, text="Filter Status", command=self.filter_by_status).grid(
+            row=1, column=2, sticky="w", pady=(8, 0)
+        )
 
     def _build_table(self) -> None:
         tree_frame = ttk.Frame(self.frame)
@@ -153,6 +173,13 @@ class StudentsTab(BaseTab):
         except StorageError as error:
             self.context.feedback.error(str(error))
 
+    def filter_by_status(self) -> None:
+        try:
+            status = "" if self.status_filter.get() == "All" else self.status_filter.get()
+            self._render(self.context.services.students.by_status(status))
+        except (StorageError, ValueError) as error:
+            self.context.feedback.error(str(error))
+
     def show_all(self) -> None:
         self.class_filter.set("")
         self.refresh()
@@ -163,6 +190,7 @@ class StudentsTab(BaseTab):
             variable.set("")
         self.variables["student_id"].set(generate_id("STU"))
         self.variables["medical_info"].set("None")
+        self.variables["status"].set("Active")
 
     # --- internals ----------------------------------------------------------
     def _form_values(self) -> dict[str, str]:
@@ -195,6 +223,7 @@ class StudentsTab(BaseTab):
                         student["student_id"],
                         student["name"],
                         student["class_name"],
+                        student["status"],
                         student["phone"],
                         student["parent_name"],
                         format_currency(as_amount(student["fees"])),

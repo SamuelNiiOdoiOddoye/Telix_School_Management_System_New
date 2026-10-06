@@ -31,6 +31,7 @@ def valid_student(**overrides: str) -> dict[str, str]:
         "date_of_birth": "2015-03-10",
         "class_name": "5",
         "fees": "500",
+        "status": "Active",
         "gender": "Female",
         "address": "Accra",
         "phone": "0241234567",
