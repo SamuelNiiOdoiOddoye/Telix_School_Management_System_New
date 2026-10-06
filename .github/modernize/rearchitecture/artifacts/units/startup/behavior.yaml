@@ -1,0 +1,23 @@
+unit_id: startup
+source_anchors:
+  - path: main.py
+    line: 1
+  - path: telix/ui/app.py
+    line: 31
+observable_contracts:
+  - Start from either supported Python entrypoint and open the Telix desktop window.
+  - Compose services, feedback, operation runner, and tab context before registering the six notebook tabs.
+  - Initial refresh loads dashboard-facing data; storage failures are reported by the UI operation flow.
+inputs: [process start, local JSON files]
+outputs: [interactive Tkinter notebook]
+side_effects: [read local JSON files, write records only when a user invokes a tab operation]
+error_handling: Static operational logging; application/storage errors are surfaced without logging record payloads.
+concurrency: Single synchronous UI process; no inter-process file lock.
+tx_boundary:
+  scope: No application-wide transaction; JSON file saves are individually replaced.
+  isolation: none
+  must_preserve: false
+  evidence: telix/storage/json_store.py:31
+open_questions:
+  - What deployment and authentication model will the Django entrypoint use?
+  - What cutover criteria must pass before the desktop entrypoint is retired?

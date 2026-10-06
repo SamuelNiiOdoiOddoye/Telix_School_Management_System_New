@@ -1,0 +1,21 @@
+unit_id: reports
+source_anchors:
+  - path: telix/ui/tabs/reports.py
+    line: 28
+observable_contracts:
+  - Display student, teacher, and academic-record tables.
+  - Filter student and associated academic rows by class.
+  - Refresh data from the corresponding services.
+inputs: [class filter, current service data]
+outputs: [rendered report tables]
+side_effects: [read student, teacher, and academic JSON]
+error_handling: Service/storage failures are surfaced through the shared UI operation flow.
+concurrency: Synchronous reads on the Tkinter event thread.
+tx_boundary:
+  scope: Read-only; no transaction is started.
+  isolation: none
+  must_preserve: true
+  evidence: telix/ui/tabs/reports.py:61
+open_questions:
+  - Which reports, export formats, and role/tenant scopes are required in V2?
+  - What data masking rules apply to student and medical information?

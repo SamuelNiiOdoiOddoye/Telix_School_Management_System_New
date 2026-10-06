@@ -1,0 +1,4 @@
+unit_id: reports
+candidate_splits: []
+decision: keep_as_one_unit
+reason: The current view combines three small read-only tables; report-specific products and authorization boundaries are not yet defined.

@@ -1,0 +1,22 @@
+unit_id: academic-records
+bindings:
+  - id: add-academic-record
+    kind: ui-event
+    source: telix/ui/tabs/academics.py:78
+    target: academic service add operation and student existence lookup
+    mechanism: form callback through OperationRunner
+  - id: edit-academic-record
+    kind: ui-event
+    source: telix/ui/tabs/academics.py:92
+    target: academic service update operation and student existence lookup
+    mechanism: selected identifier and form callback through OperationRunner
+  - id: delete-academic-record
+    kind: ui-event
+    source: telix/ui/tabs/academics.py:106
+    target: academic service delete operation
+    mechanism: confirmation then OperationRunner callback
+  - id: shared-tab-services
+    kind: dependency
+    source: telix/ui/tabs/base.py:14
+    target: academic service, student service, feedback, runner, refresh callback
+    mechanism: injected TabContext

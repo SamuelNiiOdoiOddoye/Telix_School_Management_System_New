@@ -1,0 +1,22 @@
+unit_id: finance
+source_anchors:
+  - path: telix/ui/tabs/finance.py
+    line: 20
+  - path: telix/finance/summary.py
+    line: 11
+observable_contracts:
+  - Calculate and display the current fee-income and profit/loss estimate from student and teacher records.
+  - Refresh recomputes the summary from service reads.
+inputs: [student fee amounts, teacher financial amounts]
+outputs: [formatted GHS summary values]
+side_effects: [read student and teacher JSON]
+error_handling: Validation and storage failures are surfaced through the shared UI operation flow.
+concurrency: Synchronous calculation over a point-in-time pair of file reads; no consistent snapshot is guaranteed.
+tx_boundary:
+  scope: Read-only summary; no accounting transaction or ledger exists.
+  isolation: none
+  must_preserve: false
+  evidence: telix/ui/tabs/finance.py:52
+open_questions:
+  - Define the ledger, invoice, payment, refund, and reconciliation rules before replacing this estimate.
+  - Define currency, rounding, permissions, and tenant/branch reporting scopes.

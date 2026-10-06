@@ -1,0 +1,42 @@
+version: 1
+contracts:
+  - id: desktop-process-entry
+    direction: inbound
+    current_boundary: Python process to Tkinter application
+    current_contract:
+      entrypoints: [python-main-py, python-module-telix]
+      output: interactive Tkinter notebook application
+    target_status: replace
+    notes: The future Django request/response contract is not specified by the V2 wishlist.
+
+  - id: record-file-persistence
+    direction: internal
+    current_boundary: domain services to JSON storage
+    current_contract:
+      records: JSON lists of dictionaries
+      monetary_values: JSON decimal strings for Decimal values
+      save_behavior: backup then temporary file flush/fsync and replace
+      errors: StorageError is surfaced through the UI operation runner
+    target_status: replace
+    notes: No cross-file transactions, inter-process locking, or database constraints exist.
+
+  - id: legacy-record-import
+    direction: inbound
+    current_boundary: local legacy JSON files to future Django/PostgreSQL data
+    current_contract:
+      inputs: student, teacher, and academic JSON records with legacy key variants
+      mapping: existing normalizers followed by domain validation
+      identity: preserve valid source identifiers and academic uniqueness key
+      failures: report invalid/conflicting records without logging personal field values
+    target_status: required-design
+    notes: This describes an import requirement, not an existing CLI or finalized target schema.
+
+  - id: tenant-scoped-web-access
+    direction: inbound
+    current_boundary: user/browser to future Django application
+    current_contract:
+      authentication: unspecified
+      authorization: scoped-permission design required
+      tenant_resolution: unspecified
+    target_status: needs-acceptance-criteria
+    notes: No current web/API contract or authentication behavior exists.

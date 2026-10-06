@@ -1,0 +1,22 @@
+unit_id: dashboard
+source_anchors:
+  - path: telix/ui/tabs/dashboard.py
+    line: 26
+  - path: telix/finance/summary.py
+    line: 11
+observable_contracts:
+  - Show student and teacher counts plus fee-income and profit/loss summary values.
+  - Quick actions navigate to the corresponding notebook tab.
+  - Refresh recomputes values from current service reads.
+inputs: [student JSON records, teacher JSON records, tab navigation]
+outputs: [rendered metrics, navigation]
+side_effects: [read student and teacher records]
+error_handling: Refresh is executed through the shared UI operation flow; failures are reported to the user.
+concurrency: Synchronous reads on the Tkinter event thread.
+tx_boundary:
+  scope: Read-only; no transaction is started.
+  isolation: none
+  must_preserve: true
+  evidence: telix/ui/tabs/dashboard.py:76
+open_questions:
+  - Should a future dashboard expose tenant/branch-specific rollups, and which roles may view them?

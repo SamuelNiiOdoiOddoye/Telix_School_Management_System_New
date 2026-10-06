@@ -1,0 +1,17 @@
+unit_id: reports
+bindings:
+  - id: report-refresh
+    kind: lifecycle
+    source: telix/ui/tabs/reports.py:61
+    target: student, teacher, and academic services
+    mechanism: synchronous service reads and table rendering
+  - id: class-filter
+    kind: ui-event
+    source: telix/ui/tabs/reports.py:61
+    target: student class query and academic association filter
+    mechanism: selected class value passed to refresh logic
+  - id: shared-tab-services
+    kind: dependency
+    source: telix/ui/tabs/base.py:14
+    target: service container
+    mechanism: injected TabContext

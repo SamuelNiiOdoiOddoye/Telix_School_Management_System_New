@@ -1,0 +1,22 @@
+unit_id: student-records
+bindings:
+  - id: add-student
+    kind: ui-event
+    source: telix/ui/tabs/students.py:88
+    target: student service add operation
+    mechanism: form callback through OperationRunner
+  - id: edit-student
+    kind: ui-event
+    source: telix/ui/tabs/students.py:101
+    target: student service update operation
+    mechanism: selected identifier and validated form through OperationRunner
+  - id: delete-student
+    kind: ui-event
+    source: telix/ui/tabs/students.py:122
+    target: student_removal.remove
+    mechanism: confirmation then OperationRunner callback
+  - id: shared-tab-services
+    kind: dependency
+    source: telix/ui/tabs/base.py:14
+    target: student service, removal service, feedback, runner, refresh callback
+    mechanism: injected TabContext

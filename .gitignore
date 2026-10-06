@@ -3,11 +3,20 @@
 /teacher_records.json
 /academic_records.json
 /*.backup.json
+/telix.log
+**/*.backup.json
+**/telix.log
+
+# Personal and legacy data files
+/Application Load Files/
+/ai changes/
+/potential changes 1.zip
 
 # Python runtime files
 __pycache__/
 *.py[cod]
 *.pyo
+telix_school_management.egg-info/
 
 # Local environments and editor settings
 .venv/

@@ -1,0 +1,24 @@
+unit_id: student-records
+source_anchors:
+  - path: telix/ui/tabs/students.py
+    line: 37
+  - path: telix/services/student_removal.py
+    line: 16
+observable_contracts:
+  - List, search, and class-filter student records.
+  - Add and edit records after field validation and duplicate-identifier checks.
+  - Confirm deletion before removing the student and linked academic records.
+  - Refresh dependent views after successful changes.
+inputs: [student form values, selected student identifier, search/filter text, confirmation response]
+outputs: [student table rows, validation feedback, operation result]
+side_effects: [read and write student JSON, read and write academic JSON during removal]
+error_handling: Validation and storage failures are surfaced via the shared operation runner; deletion requires explicit confirmation.
+concurrency: Synchronous UI and service calls; no file lock or optimistic concurrency check.
+tx_boundary:
+  scope: Student and linked academic JSON saves are separate; partial failure can leave records inconsistent.
+  isolation: none
+  must_preserve: false
+  evidence: telix/services/student_removal.py:16
+open_questions:
+  - What is the target guardian relationship and its permitted cardinality?
+  - What tenant/branch scope and deletion/audit policy applies?

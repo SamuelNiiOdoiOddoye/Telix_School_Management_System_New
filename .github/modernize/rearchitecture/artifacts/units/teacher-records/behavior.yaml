@@ -1,0 +1,21 @@
+unit_id: teacher-records
+source_anchors:
+  - path: telix/ui/tabs/teachers.py
+    line: 36
+observable_contracts:
+  - List and search teacher records.
+  - Add or edit records after validation and duplicate-identifier checks.
+  - Confirm deletion and refresh dependent views after changes.
+inputs: [teacher form values, selected teacher identifier, search text, confirmation response]
+outputs: [teacher table rows, validation feedback, operation result]
+side_effects: [read and write teacher JSON]
+error_handling: Validation and storage failures are surfaced via the shared operation runner; deletion requires confirmation.
+concurrency: Synchronous UI and service calls; no file lock or optimistic concurrency check.
+tx_boundary:
+  scope: Individual teacher JSON file save only; no application transaction.
+  isolation: none
+  must_preserve: false
+  evidence: telix/storage/json_store.py:31
+open_questions:
+  - What staff roles and tenant/branch access restrictions apply?
+  - What retention and audit behavior is required for staff changes?

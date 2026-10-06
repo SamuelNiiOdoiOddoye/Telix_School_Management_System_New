@@ -1,0 +1,58 @@
+version: 1
+modules:
+  - id: tab-context
+    source: telix/ui/tabs/base.py
+    source_line: 14
+    kind: shared-runtime-context
+    used_by: [dashboard, student-records, teacher-records, academic-records, reports, finance]
+    fields:
+      - services
+      - feedback
+      - runner
+      - refresh_all
+      - navigate
+    migration_note: Replace desktop context dependencies with explicit request-scoped dependencies.
+
+  - id: service-composition
+    source: telix/services/container.py
+    source_line: 14
+    kind: shared-service-composition
+    used_by: [startup, dashboard, student-records, teacher-records, academic-records, reports, finance]
+    fields:
+      - build_services
+      - students
+      - teachers
+      - academics
+      - student_removal
+    migration_note: Preserve domain behavior while adding tenant-scoped service access.
+
+  - id: shared-validation
+    source: telix/core/validators.py
+    source_line: 1
+    kind: shared-domain-validation
+    used_by: [student-records, teacher-records, academic-records]
+    fields:
+      - validate_date_of_birth
+      - validate_phone
+      - validate_email
+      - validate_amount
+      - validate_score
+    migration_note: Treat validators as candidate behavior; adapt field policy only with explicit requirements.
+
+  - id: finance-summary
+    source: telix/finance/summary.py
+    source_line: 11
+    kind: shared-calculation
+    used_by: [dashboard, finance]
+    fields:
+      - calculate_financial_summary
+    migration_note: Current calculation is a summary estimate, not ledger accounting.
+
+  - id: currency-formatting
+    source: telix/core/formatting.py
+    source_line: 7
+    kind: shared-formatting
+    used_by: [dashboard, finance]
+    fields:
+      - format_currency
+    migration_note: Preserve Decimal-aware display formatting while designing target locale and currency policy.

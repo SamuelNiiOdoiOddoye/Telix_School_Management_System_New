@@ -1,0 +1,52 @@
+version: 1
+source_runtime:
+  entrypoints:
+    - main.py
+    - telix/__main__.py
+  reachable_units:
+    - startup
+    - dashboard
+    - student-records
+    - teacher-records
+    - academic-records
+    - reports
+    - finance
+target_direction:
+  framework: Django
+  database: PostgreSQL
+  tenancy: multi-tenant
+  evidence: user-provided direction; not present in current runtime
+strategy: phased
+cleanup_required: false
+must_rewrite:
+  - path: telix/ui/
+    reason: Replace the Tkinter desktop presentation with the accepted Django web interaction model.
+  - path: telix/storage/
+    reason: Replace local JSON persistence with PostgreSQL-backed persistence and transaction boundaries.
+  - path: telix/services/
+    reason: Rework service composition and enforce tenant-scoped access in the target request context.
+copy_or_adapt:
+  - path: telix/core/validators.py
+    reason: Candidate domain validation; confirm semantics against target requirements and tests.
+  - path: telix/students/normaliser.py
+    reason: Candidate legacy JSON import mapping; retain tested legacy-key handling.
+  - path: telix/teachers/normaliser.py
+    reason: Candidate legacy JSON import mapping; retain tested legacy-key handling.
+  - path: telix/academics/
+    reason: Candidate uniqueness and score rules; map to database constraints and transactional services.
+  - path: telix/students/service.py
+    reason: Adapt validation and record workflows to tenant-scoped ORM persistence.
+  - path: telix/teachers/service.py
+    reason: Adapt validation and record workflows to tenant-scoped ORM persistence.
+  - path: telix/academics/service.py
+    reason: Adapt uniqueness and student lookup workflows to transactional ORM persistence.
+  - path: tests/
+    reason: Port relevant behavioral cases into target tests; current UI tests are not a substitute.
+defer_cleanup:
+  - Keep the current runnable V1 until the Django replacement and validated data import are ready for cutover.
+  - Do not delete local JSON records or backups as part of this architecture assessment.
+  - Do not implement V2 wishlist features until their acceptance criteria and tenant/security policies are agreed.
+constraints:
+  - This assessment creates no Django application, schema, migration, or data-import command.
+  - Do not claim the V2 wishlist is implemented.
+  - Any real personal data previously published should be treated as exposed even after repository history cleanup.

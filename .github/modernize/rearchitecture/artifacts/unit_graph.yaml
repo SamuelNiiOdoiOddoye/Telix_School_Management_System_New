@@ -1,0 +1,126 @@
+version: 1
+units:
+  - id: startup
+    name: Application startup and composition
+    source_anchors:
+      - path: main.py
+        line: 1
+      - path: telix/__main__.py
+        line: 1
+      - path: telix/ui/app.py
+        line: 84
+    triggers: [process_start]
+    depends_on: [dashboard, student-records, teacher-records, academic-records, reports, finance]
+    shared_refs:
+      - module: tab-context
+        fields: [services, feedback, runner, refresh_all, navigate]
+      - module: service-composition
+        fields: [build_services]
+    exported_signatures: []
+    dynamic_entrypoints: []
+
+  - id: dashboard
+    name: Dashboard tab
+    source_anchors:
+      - path: telix/ui/tabs/dashboard.py
+        line: 26
+    triggers: [tab_open, refresh]
+    depends_on: [student-records, teacher-records, finance]
+    shared_refs:
+      - module: tab-context
+        fields: [services, navigate, refresh_all]
+      - module: service-composition
+        fields: [students, teachers]
+      - module: finance-summary
+        fields: [calculate_financial_summary]
+      - module: currency-formatting
+        fields: [format_currency]
+    exported_signatures: []
+    dynamic_entrypoints: []
+
+  - id: student-records
+    name: Student records tab
+    source_anchors:
+      - path: telix/ui/tabs/students.py
+        line: 37
+      - path: telix/services/student_removal.py
+        line: 16
+    triggers: [tab_open, add, edit, delete, search, refresh]
+    depends_on: [academic-records]
+    shared_refs:
+      - module: tab-context
+        fields: [services, feedback, runner, refresh_all]
+      - module: service-composition
+        fields: [students, student_removal]
+      - module: shared-validation
+        fields: [validate_date_of_birth, validate_phone, validate_email, validate_amount]
+    exported_signatures: []
+    dynamic_entrypoints: []
+
+  - id: teacher-records
+    name: Teacher records tab
+    source_anchors:
+      - path: telix/ui/tabs/teachers.py
+        line: 36
+    triggers: [tab_open, add, edit, delete, search, refresh]
+    depends_on: []
+    shared_refs:
+      - module: tab-context
+        fields: [services, feedback, runner, refresh_all]
+      - module: service-composition
+        fields: [teachers]
+      - module: shared-validation
+        fields: [validate_phone, validate_email, validate_amount]
+    exported_signatures: []
+    dynamic_entrypoints: []
+
+  - id: academic-records
+    name: Academic records tab
+    source_anchors:
+      - path: telix/ui/tabs/academics.py
+        line: 27
+    triggers: [tab_open, add, edit, delete, search, refresh]
+    depends_on: [student-records]
+    shared_refs:
+      - module: tab-context
+        fields: [services, feedback, runner, refresh_all]
+      - module: service-composition
+        fields: [academics, students]
+      - module: shared-validation
+        fields: [validate_score]
+    exported_signatures: []
+    dynamic_entrypoints: []
+
+  - id: reports
+    name: Combined reports tab
+    source_anchors:
+      - path: telix/ui/tabs/reports.py
+        line: 28
+    triggers: [tab_open, class_filter, refresh]
+    depends_on: [student-records, teacher-records, academic-records]
+    shared_refs:
+      - module: tab-context
+        fields: [services]
+      - module: service-composition
+        fields: [students, teachers, academics]
+    exported_signatures: []
+    dynamic_entrypoints: []
+
+  - id: finance
+    name: Finance summary tab
+    source_anchors:
+      - path: telix/ui/tabs/finance.py
+        line: 20
+    triggers: [tab_open, refresh]
+    depends_on: [student-records, teacher-records]
+    shared_refs:
+      - module: tab-context
+        fields: [services]
+      - module: service-composition
+        fields: [students, teachers]
+      - module: finance-summary
+        fields: [calculate_financial_summary]
+      - module: currency-formatting
+        fields: [format_currency]
+    exported_signatures: []
+    dynamic_entrypoints: []

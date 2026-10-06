@@ -1,0 +1,4 @@
+unit_id: student-records
+candidate_splits: []
+decision: keep_as_one_unit
+reason: Student CRUD and its linked-record deletion are one current workflow; target tenant boundaries, guardian records, and enrollment history are not defined enough for a safe decomposition.

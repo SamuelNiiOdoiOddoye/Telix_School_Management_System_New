@@ -1,0 +1,22 @@
+unit_id: academic-records
+source_anchors:
+  - path: telix/ui/tabs/academics.py
+    line: 27
+observable_contracts:
+  - List, search, and filter academic results.
+  - Add and edit records only when the referenced student exists.
+  - Enforce the student/subject/term/academic-year uniqueness rule and score validation.
+  - Confirm deletion before removing an academic record.
+inputs: [academic form values, selected record identifier, student lookup, confirmation response]
+outputs: [academic table rows, validation feedback, operation result]
+side_effects: [read and write academic JSON]
+error_handling: Invalid student references, duplicate keys, invalid scores, and storage errors are surfaced to the user.
+concurrency: Synchronous UI and service calls; no database uniqueness constraint or file lock.
+tx_boundary:
+  scope: Individual academic JSON file save only; student lookup and save are not transactional.
+  isolation: none
+  must_preserve: false
+  evidence: telix/ui/tabs/academics.py:78
+open_questions:
+  - How should terms and academic years be modeled and validated in the target?
+  - What tenant/branch visibility and result amendment audit rules apply?

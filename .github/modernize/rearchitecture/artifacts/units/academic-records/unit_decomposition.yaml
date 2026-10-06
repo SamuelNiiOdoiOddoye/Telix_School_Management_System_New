@@ -1,0 +1,4 @@
+unit_id: academic-records
+candidate_splits: []
+decision: keep_as_one_unit
+reason: Academic record maintenance is cohesive; subjects, grading periods, result publication, and approval workflows are not specified sufficiently to split.

@@ -1,0 +1,64 @@
+version: 1
+state_flows:
+  - id: student-records-to-dashboard-and-reports
+    state_key: student JSON record file
+    writer:
+      unit: student-records
+      source: telix/students/service.py
+      operation: add or update student record
+    readers:
+      - unit: dashboard
+        source: telix/ui/tabs/dashboard.py
+        operation: list students for count and summary
+      - unit: reports
+        source: telix/ui/tabs/reports.py
+        operation: list and filter students by class
+      - unit: finance
+        source: telix/ui/tabs/finance.py
+        operation: list students for summary
+    consistency: Each consumer reads current file contents through its service; no shared in-memory cache.
+
+  - id: teacher-records-to-dashboard-and-finance
+    state_key: teacher JSON record file
+    writer:
+      unit: teacher-records
+      source: telix/teachers/service.py
+      operation: add or update teacher record
+    readers:
+      - unit: dashboard
+        source: telix/ui/tabs/dashboard.py
+        operation: list teachers for count and summary
+      - unit: reports
+        source: telix/ui/tabs/reports.py
+        operation: list teachers
+      - unit: finance
+        source: telix/ui/tabs/finance.py
+        operation: list teachers for summary
+    consistency: Each consumer reads current file contents through its service; no shared in-memory cache.
+
+  - id: academic-records-to-reports
+    state_key: academic JSON record file
+    writer:
+      unit: academic-records
+      source: telix/academics/service.py
+      operation: add, update, or delete academic record
+    readers:
+      - unit: reports
+        source: telix/ui/tabs/reports.py
+        operation: list academic records for selected students
+    consistency: Student association is enforced by application lookup, not a database foreign key.
+
+  - id: student-removal-academic-cleanup
+    state_key: student and academic JSON record files
+    writer:
+      unit: student-records
+      source: telix/services/student_removal.py:16
+      operation: remove student and associated academic records in separate saves
+    readers:
+      - unit: dashboard
+        source: telix/ui/tabs/dashboard.py
+        operation: list students for dashboard metrics
+      - unit: reports
+        source: telix/ui/tabs/reports.py
+        operation: list students and academic records
+    consistency: The two saves are not atomic; a failure between them may leave the files inconsistent.

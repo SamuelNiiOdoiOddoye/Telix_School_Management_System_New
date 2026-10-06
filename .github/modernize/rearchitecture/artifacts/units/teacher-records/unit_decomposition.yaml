@@ -1,0 +1,4 @@
+unit_id: teacher-records
+candidate_splits: []
+decision: keep_as_one_unit
+reason: Teacher CRUD is cohesive; role-specific staff workflows and tenant policy are not yet accepted requirements.

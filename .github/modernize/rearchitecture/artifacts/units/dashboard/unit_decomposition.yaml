@@ -1,0 +1,4 @@
+unit_id: dashboard
+candidate_splits: []
+decision: keep_as_one_unit
+reason: Metrics and quick navigation are a small, cohesive read-only view; split by tenant or role only after target access and dashboard requirements are defined.

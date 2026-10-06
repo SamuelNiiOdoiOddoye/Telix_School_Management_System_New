@@ -1,0 +1,4 @@
+unit_id: startup
+candidate_splits: []
+decision: keep_as_one_unit
+reason: Startup and dependency composition form one process-level boundary; Django entrypoint and web composition are target work, not separate current runtime units.

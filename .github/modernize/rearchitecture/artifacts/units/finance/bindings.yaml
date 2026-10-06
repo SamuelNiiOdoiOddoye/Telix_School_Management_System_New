@@ -1,0 +1,17 @@
+unit_id: finance
+bindings:
+  - id: compute-summary
+    kind: service-call
+    source: telix/ui/tabs/finance.py:52
+    target: calculate_financial_summary
+    mechanism: synchronous calculation using student and teacher service results
+  - id: format-money
+    kind: formatter-call
+    source: telix/ui/tabs/finance.py:53
+    target: format_currency
+    mechanism: Decimal-aware GHS display formatting
+  - id: shared-tab-services
+    kind: dependency
+    source: telix/ui/tabs/base.py:14
+    target: student and teacher services
+    mechanism: injected TabContext

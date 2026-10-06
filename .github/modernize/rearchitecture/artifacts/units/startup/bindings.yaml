@@ -1,0 +1,17 @@
+unit_id: startup
+bindings:
+  - id: cli-entry-main
+    kind: process-entry
+    source: main.py:1
+    target: telix.ui.app.main
+    mechanism: direct Python import and call under __main__
+  - id: cli-entry-module
+    kind: process-entry
+    source: telix/__main__.py:1
+    target: telix.ui.app.main
+    mechanism: Python package module execution
+  - id: notebook-composition
+    kind: component-registration
+    source: telix/ui/app.py:31
+    target: dashboard, student-records, teacher-records, academic-records, reports, finance
+    mechanism: Tkinter notebook page construction and registration

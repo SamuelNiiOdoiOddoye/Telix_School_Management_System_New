@@ -1,0 +1,22 @@
+unit_id: teacher-records
+bindings:
+  - id: add-teacher
+    kind: ui-event
+    source: telix/ui/tabs/teachers.py:80
+    target: teacher service add operation
+    mechanism: form callback through OperationRunner
+  - id: edit-teacher
+    kind: ui-event
+    source: telix/ui/tabs/teachers.py:93
+    target: teacher service update operation
+    mechanism: selected identifier and form callback through OperationRunner
+  - id: delete-teacher
+    kind: ui-event
+    source: telix/ui/tabs/teachers.py:114
+    target: teacher service delete operation
+    mechanism: confirmation then OperationRunner callback
+  - id: shared-tab-services
+    kind: dependency
+    source: telix/ui/tabs/base.py:14
+    target: teacher service, feedback, runner, refresh callback
+    mechanism: injected TabContext

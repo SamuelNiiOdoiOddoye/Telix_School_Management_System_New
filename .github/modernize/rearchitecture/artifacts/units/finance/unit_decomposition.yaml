@@ -1,0 +1,4 @@
+unit_id: finance
+candidate_splits: []
+decision: keep_as_one_unit
+reason: The current unit is a single read-only calculation. A future ledger/invoice/payment domain is a redesign, not a justified split of this estimate.

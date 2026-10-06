@@ -1,0 +1,17 @@
+unit_id: dashboard
+bindings:
+  - id: quick-navigation
+    kind: ui-event
+    source: telix/ui/tabs/dashboard.py:31
+    target: TabContext.navigate
+    mechanism: Tkinter button command callback
+  - id: refresh
+    kind: ui-event
+    source: telix/ui/tabs/dashboard.py:71
+    target: TabContext.refresh_all
+    mechanism: Tkinter button command callback
+  - id: summary-calculation
+    kind: service-call
+    source: telix/ui/tabs/dashboard.py:78
+    target: calculate_financial_summary
+    mechanism: synchronous function call over student and teacher service results
