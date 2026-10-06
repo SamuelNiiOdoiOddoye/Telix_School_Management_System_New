@@ -1,31 +1,84 @@
 # Telix School Management System
 
-Telix is a desktop school-records application built with Python and Tkinter. It provides a single-user workspace for maintaining student, teacher, and academic records, viewing linked reports, and calculating a simple expected income summary.
+Telix is a local desktop school-management application built with Python and Tkinter. Local V1 accounts use fixed roles to manage or review student, teacher, academic, attendance, and finance records, with linked reports and CSV export.
 
 > **Project status:** This is a local desktop application backed by JSON files. It is not yet a multi-user or hosted school-management platform. Review [Known limitations](#known-limitations-and-roadmap) and [Data handling and privacy](#data-handling-and-privacy) before using real student information.
 
 ## Contents
 
 - [Current features](#current-features)
+- [Authentication and first-run setup](#authentication-and-first-run-setup)
 - [How the application works](#how-the-application-works)
 - [Requirements and installation](#requirements-and-installation)
 - [Run the application](#run-the-application)
 - [Run the tests](#run-the-tests)
+- [Manual desktop acceptance checklist](#manual-desktop-acceptance-checklist)
 - [Data files and privacy](#data-files-and-privacy)
 - [Architecture](#architecture)
 - [Project structure](#project-structure)
 - [Changes in the modular restructure](#changes-in-the-modular-restructure)
-- [Known limitations and roadmap](#known-limitations-and-roadmap)
+- [Development phases](#development-phases)
+- [V2 — Telix platform](#v2--telix-platform)
+- [Known limitations](#known-limitations)
 - [Contributing](#contributing)
 - [License and usage](#license-and-usage)
 
 ## Current features
 
+### V1 local accounts and roles
+
+- Requires a local account login before opening the workspace. Role is loaded
+  from the account record; the login screen has no role selector. Logout clears
+  the in-memory session and returns to login.
+- Supports `SUPER_ADMIN`, `ADMIN`, `TEACHER`, `FINANCE_OFFICER`, and `STUDENT`.
+  Navigation is role-aware and service methods independently enforce
+  permissions; hiding a tab is not the security boundary.
+- Student accounts require a persisted link to one student ID. Student service
+  reads, academic history, assessment scores, attendance, and report exports
+  are scoped to that link, and cannot be widened by supplying another ID.
+- Teacher, finance, and student views return only fields needed for their
+  role. Finance access includes student fee/payment information and salary
+  summaries, not teacher personal records.
+- Account emails are compared case-insensitively and invalid login feedback
+  does not distinguish missing, disabled, or incorrect credentials.
+- Stores salted `scrypt` password hashes only. Passwords are excluded from
+  authenticated-user objects, reports, and application log messages.
+- The one-time Super Admin bootstrap refuses to replace an existing
+  Super Admin. Super Admins and Admins can manage accounts in the User
+  Management tab, subject to role-assignment and account-protection rules.
+- Super Admins can assign any V1 role. Admins can create and manage Teacher,
+  Finance Officer, and Student accounts only; they cannot view or modify
+  Super Admin/Admin accounts or create/promote a Super Admin.
+- Account management supports creation, contact/role updates, and activation
+  or deactivation. Student accounts must stay linked to an existing student.
+  The last active Super Admin cannot be deactivated or demoted, and a signed-in
+  administrator cannot deactivate or change their own role.
+- The selected account's read-only access profile is derived from the existing
+  V1 role capability set; it does not provide per-user permission editing.
+- Optional local demo self-registration is controlled by the explicit
+  `TELIX_ENABLE_DEMO_REGISTRATION=1` environment flag. It never asks for a role
+  and creates a Teacher account only; account creation is rejected by the
+  service when the flag is off.
+
+| V1 role | Current access |
+| --- | --- |
+| `SUPER_ADMIN` | All V1 workflows and records; full V1 account management |
+| `ADMIN` | School operations, academics, attendance, reports, finance, and limited account management |
+| `TEACHER` | Limited student identity/class details, academics, assessments, attendance, and teaching reports; no finance or teacher personnel files |
+| `FINANCE_OFFICER` | Fee/payment records, expenses, fee-relevant student fields, salary totals, and finance reports; no academic or teacher personal records |
+| `STUDENT` | Own linked student profile fields, academic history, assessments, attendance, and own reports only |
+
+V1 role enforcement is local application authorization, not hosted identity,
+multi-user coordination, audit logging, or protection from someone with direct
+access to the computer and its JSON files.
+
 ### Dashboard
 
-- Displays the number of saved students and teachers.
-- Shows expected fee income and the calculated profit or loss.
-- Provides quick navigation to Students, Teachers, and Academic Records.
+- Displays total and active student counts, teacher count, and attendance percentage.
+- Shows expected fees, receipts, outstanding balance, salaries, other expenses,
+  total expenses, and collected-cash profit or loss.
+- Provides quick navigation to student, teacher, academics, assessment,
+  attendance, and finance workflows.
 - Refreshes the application views after successful record changes.
 
 ### Student records
@@ -34,6 +87,9 @@ Telix is a desktop school-records application built with Python and Tkinter. It 
 - Stores Student ID, name, date of birth, class, fees, gender, address, phone, email, medical information, and parent or guardian contact details.
 - Generates an ID when the ID field is left blank; manually supplied IDs are accepted.
 - Searches by Student ID and filters the table by class.
+- Tracks Active, Inactive, or Withdrawn status and supports filtering by status.
+- Allows Active/Inactive changes and withdrawal; a withdrawn student can only
+  remain withdrawn or be explicitly reactivated.
 - Prevents duplicate IDs without regard to case and does not allow an existing Student ID to be changed during an update.
 - Requires a selected record before updating. Deletion requires confirmation.
 
@@ -52,24 +108,92 @@ Telix is a desktop school-records application built with Python and Tkinter. It 
 - Associates each score with an existing student by Student ID.
 - Stores subject, whole-number score from 0 to 100, term, and academic year.
 - Searches for a student by ID and displays that student's linked academic records.
+- Shows score counts and average scores grouped by saved academic-year and
+  term labels, preserving period names when a catalog is later renamed.
 - Prevents duplicate subject entries for the same student, term, and academic year.
 - Removes a student's linked academic records when that student is deleted.
+
+### Academic setup and enrollment
+
+- Create, view, update, and delete classes, subjects, academic years, and terms
+  from the **Academic Setup** tab.
+- Create and maintain student enrollments linked by explicit student, class,
+  and academic-year IDs.
+- Assign teachers to managed subjects by academic year. Assignments prevent
+  deletion of referenced teachers, subjects, or academic years.
+- Keep enrollment history through effective start/end dates; transfers within
+  an academic year must not overlap.
+- Validate term/enrollment dates against the selected academic year and prevent
+  deleting classes or years that are still referenced.
+
+New academic records select a managed subject, term, and academic year and
+persist their stable catalog IDs with display names. Existing legacy records
+without those IDs remain readable and can still be edited using their saved
+text values.
+
+### Assessments and grading
+
+- Configure weighted or unweighted grading per academic year, with an optional
+  term-specific override.
+- Define assessment components and weights (for example, Coursework 40% and
+  Exam 60%) and school grading bands.
+- Record and maintain per-student, per-subject component scores from 0 to 100.
+- Calculate a subject grade once all configured components have scores;
+  weighted mode applies configured weights, while unweighted mode averages
+  components equally.
+- View assessment component scores in Reports and export the visible rows to CSV.
+
+Profiles and component scores are stored separately from legacy academic
+records; the existing one-score-per-subject/term/year records remain supported.
+
+### Attendance
+
+- Record Present, Absent, Late, or Excused attendance for a student on a date.
+- Attendance is linked to the student's enrollment effective on that date;
+  dates outside the academic year or enrollment are rejected.
+- Prevents duplicate records for the same student and date.
+- View attendance history with date, student, and class filters; select records
+  to update or delete them.
+- Displays status counts and an attendance percentage. Present and Late count
+  as attended; Excused records are excluded from the percentage denominator.
+- Student deletion also removes linked attendance records.
+
+Attendance, explicit transfer/promotion, withdrawal, re-enrollment, and student
+status are available as separate workflows. Status is Active, Inactive, or
+Withdrawn; enrollment history remains effective-dated. A consolidated
+student-status and enrollment lifecycle timeline/report is not yet available.
 
 ### Reports
 
 - Shows student and parent or guardian contact details.
 - Shows teacher contact and emergency-contact details.
-- Shows academic records alongside the related student's name and class.
-- Filters student and linked academic report rows by class; teacher records remain visible across classes.
+- Shows academic records alongside the student's name and explicitly labels
+  the class as current, rather than implying it was the historical class.
+- The Academic Records workspace shows per-period subject counts and average
+  scores for the searched student.
+- Shows attendance history with counts and attendance percentage.
+- Shows payment and expense entries with a financial summary.
+- Filters students by ID, status, and class; teachers by ID/name; academic and
+  assessment records by student filters and subject/term/year search; attendance
+  by student filters, class, status, and date range; and finance by student ID,
+  category, and date range.
+- Exports visible report table data to CSV.
+- Displays a clear empty-state row when a report has no matching records.
 
-### Finance summary
+### Finance
 
-- Totals the fees recorded on student records as **expected fee income**.
-- Totals the salaries recorded on teacher records as **teacher salary expense**.
-- Calculates **profit / loss** as expected fee income minus recorded teacher salaries.
-- Displays monetary values in Ghana cedis (GHS).
+- Records student payments, including partial payments, dates, amounts, and
+  optional descriptions.
+- Calculates expected fees from student records, received payments, remaining
+  balances, and overpayments retained as student credit.
+- Records, updates, and deletes categorized school expenses.
+- Includes teacher salaries and other expenses in the financial summary;
+  profit/loss is calculated from received income minus those expenses.
+- Uses `Decimal` values and displays totals in Ghana cedis (GHS).
 
-This is a summary of the values in the records, not an accounting ledger. It does not track payments received, outstanding balances, expenses other than teacher salaries, or financial periods.
+This is a basic cash summary, not an invoicing or accounting system. Fees are
+still one expected amount per student; there are no fee schedules, invoices,
+academic-period allocations, payment receipts, or audit trail.
 
 ### Validation and data handling
 
@@ -86,15 +210,29 @@ This is a summary of the values in the records, not an accounting ledger. It doe
 
 ### Typical workflow
 
-1. Start the app from the project root. The dashboard loads saved records and calculates its current summary.
+1. Bootstrap the first Super Admin if needed, launch the app, and sign in. The
+   dashboard then loads saved records and calculates its current summary.
 2. In **Students** or **Teachers**, complete the form and choose **Add Student** or **Add Teacher**. IDs are generated when blank; otherwise enter a unique ID.
 3. To edit a record, select its row in the table, change the form values, and choose **Update Selected**. The original ID is kept unchanged.
-4. Use the exact-ID search controls to find a student or teacher. The Students tab also supports filtering by class.
-5. In **Academic Records**, search for and confirm a student, enter a subject, score, term, and academic year, then choose **Add Score**. Existing entries can be selected and updated or deleted.
-6. Open **Reports** to view linked student, teacher, and academic information. Choose a class filter to narrow the student and academic views.
-7. Open **Finance** to recalculate the expected fee income, teacher salary expense, and resulting profit or loss.
+4. Use the exact-ID search controls to find a student or teacher. The Students
+   tab supports class and lifecycle-status filters.
+5. In **Academic Setup**, create the classes, academic years, subjects, and terms your school uses. Add a student enrollment by selecting its student, class, and year and setting its effective start date.
+6. In **Academic Setup → Teacher Assignments**, assign a teacher to a
+   managed subject for an academic year.
+7. In **Academic Records**, search for and confirm a student, select a managed subject, term, and academic year, enter a score, then choose **Add Score**. Existing entries can be selected and updated or deleted; searching a student shows saved per-period score averages.
+8. In **Assessments**, configure grading components and bands for an academic year or term, enter component scores, and calculate the grade once all components are recorded.
+9. In **Academic Setup → Enrollments**, use **Transfer / Promote** to close the current enrollment and create its successor, or record a withdrawal effective on the selected date.
+10. In **Attendance**, choose an enrolled student, date, and status to record attendance. Filter history by date, student, or class; select a record to update or delete it.
+11. In **Students**, set a student's status to Active, Inactive, or Withdrawn.
+    Use the status filter and confirm reports show the selected population.
+12. Open **Reports** to view linked student, teacher, academic, assessment,
+    attendance, and finance data. Use the report filters for student, teacher,
+    academic text, attendance status and dates, and finance category and dates.
+13. In **Finance**, record payments and school expenses, then review expected
+    income, received income, outstanding balances, student credit, expenses,
+    and profit/loss.
 
-Successful changes trigger refreshes of the relevant tables and summary views. Delete actions ask for confirmation. Deleting a student also removes academic records linked to that student's ID.
+Successful changes trigger refreshes of the relevant tables and summary views. Delete actions ask for confirmation. Deleting a student also removes linked academic records, assessment component scores, enrollments, and attendance records; payment history blocks deletion. These JSON file updates are sequential and are not a cross-file transaction.
 
 ### Validation rules
 
@@ -121,6 +259,24 @@ python -m pip install -e ".[dev]"
 
 ## Run the application
 
+Create the initial local administrator once:
+
+```powershell
+python -m telix.bootstrap_admin
+```
+
+The command prompts for the administrator name, email, and phone, then prompts
+twice for a password without echoing it. Enter the Telix Super Admin details
+provided by the account owner. Passwords must be at least 12 characters. The
+password is never shown or stored in plaintext. Do not pass it as a
+command-line argument. Alternatively, set `TELIX_SUPERADMIN_NAME`,
+`TELIX_SUPERADMIN_EMAIL`, `TELIX_SUPERADMIN_PHONE`, and
+`TELIX_SUPERADMIN_PASSWORD` in the environment for a controlled automated
+bootstrap; unset the password variable afterward. If an account already
+exists, bootstrap makes no changes.
+
+Then launch:
+
 From the project root:
 
 ```powershell
@@ -133,9 +289,60 @@ Alternatively:
 python -m telix
 ```
 
+### Development-only demo accounts
+
+To show **Create Local Demo Account** on the login screen in a PowerShell
+development session, explicitly enable the opt-in before launching Telix:
+
+```powershell
+$env:TELIX_ENABLE_DEMO_REGISTRATION = "1"
+python .\main.py
+```
+
+Self-registration collects full name, email, and a password with confirmation.
+It uses the existing password policy and creates only a Teacher account; it
+cannot assign Admin or Super Admin. The feature is disabled unless the flag is
+set to `1`. Keep it disabled for production installations and unset the
+environment variable when the demo session ends.
+
+For a disposable development copy only, run:
+
+```powershell
+python -m telix.bootstrap_demo_accounts
+```
+
+The repeatable bootstrap creates these reserved `.invalid` accounts when they
+are missing: `demo-super-admin@telix.example.invalid`,
+`demo-admin@telix.example.invalid`, `demo-teacher@telix.example.invalid`,
+`demo-finance@telix.example.invalid`, and
+`demo-student@telix.example.invalid`. It creates the synthetic
+`DEMO-STU-001` record only if that ID is absent and links the student account
+to it. It never resets an existing account or password. Each missing account's
+password and confirmation are entered interactively with hidden input; no
+password is echoed. Do not run this bootstrap against production data.
+
+The portfolio-only path creates one synthetic Teacher account without
+prompting:
+
+```powershell
+python -m telix.bootstrap_demo_accounts --portfolio-only
+```
+
+**Development-only portfolio credentials**
+
+- Email: `demo-teacher@telix.example.invalid`
+- Password: `TelixDemo!2026`
+- Role: Teacher
+
+This account is synthetic, has no student link, and must never be used with
+production records or on a production installation. The bootstrap creates it
+only when that email is absent; it will not reset an existing account's
+password. Use a disposable checkout/data directory.
+
 On systems where the `python` launcher points to the wrong interpreter, use the full path to the desired Python executable in place of `python`.
 
-The app requires a graphical desktop session. The current test suite does not need to open a Tkinter window.
+The app requires a graphical desktop session. The current test suite does not
+need to open a Tkinter window.
 
 ## Run the tests
 
@@ -157,6 +364,14 @@ mypy telix
 
 These checks also run in GitHub Actions for pull requests and pushes.
 
+### Manual desktop acceptance checklist
+
+Automated Tk smoke tests cover startup, tab registration, login success/failure,
+logout, and report rendering. Use the
+[manual desktop acceptance checklist](tests/manual_acceptance.md) in a
+disposable copy of the repository for full acceptance; do not use live school
+records.
+
 ## Data files and privacy
 
 The application reads and writes these files in the project root:
@@ -165,7 +380,19 @@ The application reads and writes these files in the project root:
 |---|---|
 | `student_records.json` | Student and parent/guardian records |
 | `teacher_records.json` | Teacher records |
-| `academic_records.json` | Student academic records |
+| `academic_records.json` | Student academic records, with managed catalog IDs on newly linked records |
+| `classes.json` | Managed class catalog |
+| `subjects.json` | Managed subject catalog |
+| `academic_years.json` | Academic-year definitions |
+| `terms.json` | Terms linked to academic years |
+| `enrollments.json` | Effective-dated student class enrollments |
+| `teacher_assignments.json` | Teacher, subject, and academic-year assignments |
+| `attendance_records.json` | Student attendance linked to the effective enrollment |
+| `assessment_records.json` | Per-student assessment component scores |
+| `grading_profiles.json` | Grading components, weights, and grade bands |
+| `payments.json` | Student payments and payment descriptions |
+| `expenses.json` | Categorized school expense entries |
+| `users.json` | Local account data; contains salted password hashes |
 
 If a file does not exist yet, it is treated as an empty record list. Before overwriting an existing file, the application copies it to the corresponding `*.backup.json` file. Saves are written to a temporary file in the same directory and then replace the main file. A backup is a recovery aid, not a substitute for regular off-device backups.
 
@@ -173,7 +400,11 @@ Money is held and calculated as `Decimal` in application code. New fee and salar
 
 These files may contain sensitive personal information about children, families, and staff. Keep them out of public repositories and untrusted backups. The `.gitignore` excludes the record files, legacy data directory, backups, logs, Python bytecode, local environments, and the bundled `ai changes/` directory from future untracked additions. The `ai changes/` directory is personal local material: it is intentionally not part of the project source. **Ignoring a path does not untrack files already committed or staged by Git.** Check tracked files and repository history before publishing; removing a sensitive file from the latest commit does not remove it from earlier commits.
 
-The application currently provides no user accounts, access controls, encryption at rest, or audit history. Use only in a controlled local environment with appropriate operating-system account security until those protections are implemented.
+The application has no encryption at rest, audit history, or account recovery.
+Role policy is a fixed V1 capability map rather than configurable permission
+management. Keep the repository and local data files private and use
+operating-system account security. The account file and its backups are ignored
+by Git.
 
 ## Architecture
 
@@ -181,10 +412,14 @@ The code is separated by responsibility:
 
 1. **`telix/core/`** — shared validation, text normalization, identifiers, search, amount conversion, formatting, and application errors.
 2. **`telix/storage/`** — JSON file persistence and a generic repository that normalizes loaded records.
-3. **`telix/students/`, `telix/teachers/`, `telix/academics/`** — field definitions, legacy normalization, validation, repositories, and record-specific business rules.
-4. **`telix/finance/`** — the expected-income and salary summary calculation.
-5. **`telix/services/`** — service construction and workflows spanning record types, including student deletion with linked academic records.
-6. **`telix/ui/`** — the Tkinter app shell, shared tab context, reusable forms and tables, feedback, and one tab module per screen.
+3. **`telix/students/`, `telix/teachers/`, `telix/academics/`** — field definitions, legacy normalization, validation, repositories, and record-specific business rules. Academic setup and enrollment rules are implemented in `academics/structure_service.py`.
+4. **`telix/attendance/`** — attendance validation, JSON repository, and service summaries linked to effective-dated enrollment.
+5. **`telix/finance/`** — expected fee, payment, balance, credit, salary, expense, and profit/loss calculations with ledger repositories and services.
+6. **`telix/services/`** — service construction and workflows spanning record types, including student deletion with linked academic and attendance records.
+7. **`telix/authentication/`** — local account persistence, salted password
+   hashing, login verification, and in-memory session state.
+8. **`telix/ui/`** — the login screen, Tkinter app shell, shared tab context,
+   reusable forms and tables, feedback, and one tab module per screen.
 
 The UI calls services; services apply business rules through repositories; repositories use the JSON storage layer. This keeps validation and record rules out of screen event handlers. `telix/ui/app.py` composes the services and registers the tabs. `main.py` and `telix/__main__.py` provide the two launch commands.
 
@@ -195,7 +430,9 @@ Telix_School_Management_System_new/
 ├── main.py
 ├── telix/
 │   ├── __main__.py
+│   ├── bootstrap_admin.py
 │   ├── config.py
+│   ├── authentication/
 │   ├── core/
 │   ├── storage/
 │   ├── students/
@@ -242,22 +479,215 @@ The modular restructure recorded in [CHANGELOG.md](CHANGELOG.md) reorganized the
 
 The restructure is intended to preserve the existing screens, record locations, validation behavior, and application workflows while making the code easier to maintain. Existing numeric JSON amounts remain readable; newly written monetary amounts are represented as decimal strings.
 
-## Known limitations and roadmap
+## Development phases
 
-The following are not implemented in the current application:
+Telix is being developed in stages. The current product is **V1: a local, single-machine desktop application
+with one active account session at a time**. It supports fixed local V1 roles
+and does not coordinate concurrent users. V1.x progressively completes and
+hardens that application; it is not an enterprise SaaS product. **V2 is a separate
+planned evolution** into the larger multi-user, multi-tenant Telix platform.
+Roadmap items below are planned unless explicitly identified as implemented.
 
-- User authentication, role-based permissions, and multi-user access.
-- Encryption at rest, audit logging, and configurable privacy/retention controls.
-- Transactional storage for operations that update multiple JSON files. Student deletion updates academic and student files separately; if the second save fails, the first may already have completed.
-- A database backend, schema migration tooling, or support for concurrent writers. Each list operation reads the complete JSON file, there is no inter-process locking, and application-level ID checks do not provide database-enforced uniqueness.
-- Attendance, timetable, fees received, balances, expense ledgers, and broader financial reporting.
-- Report export to PDF, spreadsheet, or other formats.
-- Automated installer/distribution package and real-desktop GUI acceptance tests.
-- Dedicated restore/backup management UI and production operations documentation.
-- Multi-tenant organization/branch scoping and scoped access to student, parent, teacher, and finance data.
-- Import/data-quality tooling for legacy records. Existing JSON may contain incomplete or nonstandard records; review and clean such records before migrating them.
+### V1 — Local desktop school-management foundation
 
-These items are future work, not current features. In particular, the financial summary must not be treated as a complete accounting system, and the JSON storage model should not be used for concurrent or networked multi-user operation.
+**Purpose:** Build a reliable, modular school-management application for
+fundamental school records and workflows on one local desktop.
+
+#### V1.0 — Core foundation
+
+**Status: Substantially complete.** V1.0 established the current architectural
+foundation:
+
+- Python desktop application using Tkinter/ttk.
+- Modular student, teacher, and academic-record domains.
+- JSON persistence behind repository/service boundaries.
+- Student and teacher record CRUD, search, field validation, and legacy-data
+  normalization.
+- Academic score records associated with students, with term/year fields and
+  duplicate checks.
+- Finance summary foundations using `Decimal` rather than binary floating
+  point.
+- Shared error handling, reusable form/table widgets, and operational logging
+  that avoids record values.
+- Automated unit and workflow tests, Ruff linting and formatting, mypy, and
+  GitHub Actions CI.
+- Ignore rules for local school records, backups, and personal change files.
+
+“Substantially complete” describes the foundation, not completion of the full
+V1 acceptance criteria below.
+
+#### V1.1 — Core records completion
+
+**Status: In progress.** Student and teacher create/view/search/update/delete
+workflows and basic academic-record CRUD are present. The Academic Setup tab
+now manages class, subject, academic-year, and term catalogs plus
+effective-dated enrollments. Service tests cover core constraints and
+enrollment history. Automated UI checks cover startup and report rendering,
+but full GUI acceptance remains outstanding.
+Remaining:
+
+- Complete validation, meaningful errors, persistence, UI integration, and
+  tests across all core records and their relationships.
+
+#### V1.2 — Academic management
+
+**Status: In progress.** Managed classes, subjects, academic years, terms, and
+effective-dated enrollment are present in Academic Setup. New academic records
+can be linked to managed subjects, terms, and academic years, while legacy
+records retain their text-based compatibility. Configurable assessment
+components, year/term grading profiles, weighted or unweighted grade
+calculations, and assessment reporting are implemented. Teacher/subject
+assignments and per-period academic summaries are implemented. Broader
+academic history/reporting and phase-wide acceptance remain outstanding.
+
+This phase remains local desktop V1 work. It does not add V2 multi-tenancy,
+APIs, or mobile apps.
+
+#### V1.3 — Attendance and student lifecycle
+
+**Status: In progress.** Attendance is implemented for Present, Absent, Late,
+and Excused statuses, linked to the effective enrollment and academic year.
+Explicit transfer/promotion and withdrawal actions preserve effective-dated
+enrollment history, and re-enrollment can be added without overlap. Student
+status (Active, Inactive, Withdrawn), status filtering, duplicate attendance
+prevention, filters, summaries, and student-removal cleanup are implemented.
+The consolidated lifecycle timeline and full phase acceptance remain
+outstanding.
+
+#### V1.4 — Finance
+
+**Status: In progress.** Student payment and expense records support
+create/update/delete and JSON persistence. The finance summary reports expected
+fees, receipts, outstanding balances, overpayment credit, salary expense,
+other expenses, total expenses, and collected-cash profit/loss using `Decimal`.
+Student deletion is blocked while payment history remains, avoiding an orphaned
+financial record. Fee schedules, invoices, payment allocation by academic
+period, audit history, and phase-wide acceptance remain outstanding.
+
+#### V1.5 — Reports and administration
+
+**Status: In progress.** Reports include linked student/guardian, teacher,
+academic, assessment, attendance, payment, and expense data; student, teacher,
+academic, attendance, and finance filters; empty-state feedback; CSV export of
+displayed rows; and dashboard financial statistics. Academic performance
+summaries are available in Academic Records. Complete phase-wide GUI
+acceptance remains outstanding.
+
+#### V1.6 — UX/UI completion
+
+**Status: In progress.** The current application has reusable widgets,
+navigation, validation feedback, delete confirmations, and table empty states.
+A V1 release still needs a systematic review of navigation, layout, typography,
+spacing, error states, dialogs, icons, keyboard usability, accessibility
+basics, and supported desktop window sizes. Continue to prefer shared UI
+components over duplicated behavior.
+
+#### V1.7 — Testing, reliability, and release hardening
+
+**Status: In progress.** CI currently runs tests, Ruff lint and format checks,
+and mypy on Python 3.10 and 3.13. Local automated tests cover authentication,
+core helpers, JSON storage, normalization, record services, finance
+calculations, selected workflows, and report/login UI smoke tests. Local
+quality gates do not substitute for a confirmed GitHub Actions run; a
+repository execution-quota or subscription restriction must be distinguished
+from an application-code failure. The remaining work includes confirming
+remote CI when available, additional lifecycle and failure-path acceptance,
+full desktop acceptance, Python 3.10 execution, and clean-install verification.
+
+A phase is complete only when its behavior, UI workflow, validation,
+persistence, error handling, relevant tests, CI, lint, format, type checks,
+and documentation meet its acceptance criteria.
+
+#### V1.8 — Documentation and release
+
+**Status: In progress.** This README documents the current product, its
+limitations, authentication setup, and the staged V1-to-V2 boundary. Local V1
+Local role-based login/logout, student record scoping, Super Admin bootstrap,
+and development-only demo-account bootstrap are implemented. Before
+declaring and tagging a V1 release, complete the full acceptance criteria,
+verify manual desktop workflows and clean-install behavior, confirm passing
+CI, and review documentation against the shipped behavior. No V1 release tag
+is claimed by this roadmap.
+
+### V1 completion criteria
+
+V1 is not complete until the application reliably demonstrates secure local
+V1 role-aware login/logout/bootstrap; core student and teacher records; managed
+classes, subjects, years, terms and enrollment; academics and student history;
+attendance and lifecycle workflows; per-student expected fees, payments,
+outstanding/credit balances, expenses, and accurate cash summaries; useful
+reports; coherent UI behavior;
+automated unit, service, repository and workflow tests; practical GUI
+acceptance coverage; passing CI/lint/format/type checks; and documentation
+consistent with the implementation.
+
+## V2 — Telix platform
+
+V2 is a separate planned architectural stage, not functionality in this
+desktop application. It is intended to evolve Telix into a multi-user,
+multi-tenant school-management platform. The current V1 domain rules and
+storage abstraction are inputs to that design, not proof that its features
+already exist.
+
+### Planned platform architecture
+
+The intended direction includes Django and Django REST Framework,
+PostgreSQL, Redis, Celery, a Next.js/React/TypeScript web experience with
+Tailwind CSS, and Flutter mobile applications. These are roadmap technologies;
+they are not current runtime dependencies.
+
+### Planned identity and tenant capabilities
+
+- Cross-organization identity, role-based access control, authentication
+  management, and security administration beyond the single local V1 Super
+  Admin.
+- Role-based access control, permission scopes, organization membership, and
+  audit logging, with authorization designed centrally rather than scattered
+  across UI code.
+- Organizations, schools, branches, tenant-isolated data, school-specific
+  configuration, academic years, terms, and settings.
+- Explicit, enforceable ownership boundaries for every tenant-owned record.
+- A conceptual access chain of user → membership → role → permissions → scope.
+
+### Planned applications and functional areas
+
+The eventual platform may include a Telix Admin control plane, school web
+application, teacher, student, and parent/guardian experiences, an API layer,
+and mobile applications. Planned functional areas include administration,
+staff, academics, attendance, assessments, grading, assignments, timetables,
+finance, invoices, payments, reports, communications, notifications,
+documents, analytics, search, and settings. These are V2 goals and must not
+be represented as current V1 features.
+
+## Known limitations
+
+- The current application is local and single-machine. It supports fixed
+  Super Admin, Admin, Teacher, Finance Officer, and linked Student V1 roles,
+  with local account assignment but no configurable permissions, tenant
+  isolation, or coordinated multi-user access. Authentication does not encrypt
+  local JSON data at rest or prevent access by a person who can read the account
+  file or application source on the same computer.
+- Local JSON persistence has no database constraints, inter-process locking,
+  or transaction spanning multiple files. Student deletion updates linked
+  record files sequentially and may be interrupted partway through; payment
+  history blocks student deletion.
+- Each list operation reads its full JSON file. Backups are made during saves,
+  but there is no backup/restore management UI.
+- Finance tracks student payments and categorized expenses, but fees are still
+  a single expected amount per student. There are no invoices, payment
+  allocations by academic period, refunds, or financial audit history.
+- Attendance and enrollment transitions have basic workflows but do not yet
+  provide a consolidated student lifecycle timeline. Assignment history is
+  linked to academic years, but class-specific timetables and an audit trail
+  for assignment changes are not implemented.
+- The app provides no encryption at rest or audit history. Keep local record
+  files private, excluded from Git, and protected by operating-system account
+  security.
+- Existing JSON records may be incomplete or nonstandard. Review and clean
+  records before any future import; import tooling and conflict handling are
+  not yet implemented.
+- Automated installer/distribution packaging and real-desktop GUI acceptance
+  tests are not yet in place.
 
 ## Contributing
 

@@ -1,103 +1,113 @@
-Telix School Management System V1 finishing
+# Telix School Management System — V1
 
-In V1 Fix the following :
+## Product scope
 
-&#x09;1. Continue and make the modify student record work
+Telix V1 is a single-school, local desktop application built with Python,
+Tkinter, and JSON persistence. It is not a hosted or coordinated multi-user
+service. Its existing layered architecture is:
 
-&#x09;2. Continue the modify academic records and make it work
+```text
+Tkinter UI → Services → Domain rules → Repositories → JSON storage
+```
 
-&#x09;3. Save all other records into teacher and student json record files respectively
+V1 is being completed and acceptance-tested as an existing product; this
+document does not start a rewrite or claim release acceptance before the
+remaining manual checks are complete.
 
-&#x09;4. After the deletion of a record it should actually be deleted
+## Implemented V1 functionality
 
-&#x09;5. Use student id's for search keys to prevent wrong selections
+- Student and teacher record management, validation, search, and deletion
+  safeguards.
+- Managed classes, subjects, academic years, terms, effective-dated
+  enrollment, and teacher-to-subject assignments by academic year.
+- Academic records, configurable assessment components and grading, and
+  student-linked academic history.
+- Attendance recording, filtering, summaries, and enrollment/date validation.
+- Student active/inactive/withdrawn states and transfer/promotion workflows.
+- Payment and expense ledgers, balance/credit calculations, finance summaries,
+  reports, dashboard metrics, and CSV export.
+- JSON persistence with atomic writes, backups, and explicit handling of
+  malformed storage.
+- Local authentication, salted `scrypt` password hashes, in-memory sessions,
+  logout, and five fixed roles:
 
-&#x09;6. Use .gitignore on student and teacher record files because of their level of sensitivity
+  ```text
+  SUPER_ADMIN
+  ADMIN
+  TEACHER
+  FINANCE_OFFICER
+  STUDENT
+  ```
 
-***CORE FUNCTIONALITY***
+Service-layer authorization enforces role capabilities. Student accounts are
+linked to existing student records and remain scoped to their own permitted
+records.
 
-&#x09;*- Add Student*
+## User Management and demo accounts
 
-&#x09;*- Add Teacher*
+Super Admins can manage V1 accounts and assign supported V1 roles. Admins can
+manage Teacher, Finance Officer, and Student accounts but cannot inspect or
+manage Admin/Super Admin accounts or create/promote a Super Admin. Student
+accounts require an existing student link. Administrators can update account
+details and activate/deactivate accounts; the last active Super Admin is
+protected from deactivation or demotion.
 
-&#x09;*- Edit Student*
+The User Management access profile is read-only and derived from the selected
+account's existing V1 role capabilities. V1 does not have arbitrary
+per-account permission editing.
 
-&#x09;*- Delete Student*
+Self-service demo registration is an optional local development/portfolio
+feature. Set `TELIX_ENABLE_DEMO_REGISTRATION=1` before launching to display
+**Create Local Demo Account**. The form collects a full name, email, and
+password confirmation; it always creates a Teacher account and has no role
+input. Registration is disabled when the environment flag is unset. Keep it
+disabled for production.
 
-&#x09;*- Delete Teacher*
+The interactive CLI demo bootstrap remains available with
+`python -m telix.bootstrap_demo_accounts`. The portfolio-only synthetic Teacher
+account is documented in the README as **Development / Portfolio Demo — Not
+for Production**. Never run demo bootstrap flows against production data.
 
-&#x09;*- Search Functionality for students and teachers by either student\_id or teacher\_id*
+Initial Super Admin setup uses `python -m telix.bootstrap_admin`. The account
+owner provides the local credentials; no real credential is stored in this
+document or in source code.
 
-&#x09;*- View records by class of the student*
+## Data handling and limitations
 
-&#x09;*- Profit / Loss Calculation*
+- JSON files are stored locally beside the project and are excluded from Git.
+- Local JSON data is not encrypted at rest. Operating-system users who can
+  access the files can read them.
+- Storage does not provide database constraints, inter-process locking, or
+  transactions across multiple JSON files.
+- Student fees remain a single expected amount per student; invoices and
+  academic-period payment allocations are not implemented.
+- A consolidated lifecycle audit timeline, backup/restore UI, and
+  installer/distribution packaging are not implemented.
+- Authentication and V1 roles are local application controls, not protection
+  against a person with direct access to the computer, files, or source code.
 
-***DATA VALIDATION***
+Protect local data with operating-system permissions and use synthetic data
+for development and demonstrations.
 
-&#x09;*- Prevent empty fields from being submitted*
+## V1 release acceptance status
 
-&#x09;*- validate ages*
+Local automated checks run for the current implementation:
 
-&#x09;*- validate phone numbers*
+- `python -m unittest discover -s tests -t .` — 143 tests passed.
+- `ruff check .` — passed.
+- `ruff format --check .` — passed.
+- `mypy telix` — passed.
+- Tk UI smoke tests — 10 passed in the local desktop environment.
 
-&#x09;*- prevent duplicate student id's*
+These automated checks do not replace the full manual desktop acceptance
+checklist in [`tests/manual_acceptance.md`](./tests/manual_acceptance.md).
+Manual acceptance and a clean-install review remain outstanding; V1 must not
+be called release-complete until those checks pass.
 
-&#x09;*- prevent duplicate teacher id's*
+## V2 — future work only
 
-&#x09;*- friendly error messages instead of crashes*
-
-**UI IMPROVEMENTS**
-
-&#x09;- confirmation before deleting records
-
-&#x09;- application icons
-
-**BETTER FILE STRUCTURE**
-
-&#x09;*- main.py*
-
-&#x09;*- students.py*
-
-&#x09;*- teachers.py*
-
-&#x09;*- finance.py*
-
-&#x09;*- utils.py*
-
-&#x09;*- database.py*
-
-&#x09;*- assets/*
-
-**DOCUMENTATION**
-
-&#x09;*- create README.md (include screenshots, features, installation, technologies used, future improvements)*
-
-**ERROR HANDLING**
-
-&#x09;**-** *use "try except"*
-
-&#x09;*- automatic backup of the JSON data before writing*
-
-&#x09;*- remove duplicated code*
-
-&#x09;*- better function names*
-
-&#x09;*- comments where necessary*
-
-&#x09;*- remove unused variables*
-
-**PORTFOLIO QUALITY**
-
-&#x09;*- Dashboard*
-
-&#x09;*- Student Page*
-
-&#x09;*- Teacher Page*
-
-&#x09;*- Finance Page*
-
-&#x09;*- Reports*
-
-&#x09;
-
-**LINK ALL TABLES SO WE CAN SEE OUTPUTS FOR SOMETHING LIKE STUDENT DETAILS, PARENT DETAILS, TEACHER DETAILS, ACADEMIC RECORDS AND ALL OTHER RELEVANT DATA**
+V2 is not implemented or started by this document. It may be designed
+separately after V1 acceptance. Potential future targets include a web/mobile
+application, Django/DRF, PostgreSQL, Redis/Celery, Next.js/React/TypeScript,
+Flutter, multi-tenancy, and more granular authorization scopes. None of these
+are part of V1.

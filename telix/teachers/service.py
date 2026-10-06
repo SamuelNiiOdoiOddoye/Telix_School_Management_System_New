@@ -5,23 +5,49 @@ from __future__ import annotations
 import builtins
 from typing import Any, Mapping
 
+from telix.authentication.roles import (
+    FINANCE_OFFICER,
+    SUPER_ADMIN,
+    Authorization,
+    TEACHERS_DELETE,
+    TEACHERS_READ,
+    TEACHERS_SALARY_SUMMARY,
+    TEACHERS_WRITE,
+)
 from telix.core.errors import ValidationError
 from telix.core.search import find_by_id, find_index_by_id
+from telix.teachers.assignment_repository import TeacherAssignmentRepository
 from telix.teachers.repository import TeacherRepository
 from telix.teachers.validator import prepare_teacher
 
 
 class TeacherService:
-    def __init__(self, repository: TeacherRepository | None = None) -> None:
+    def __init__(
+        self,
+        repository: TeacherRepository | None = None,
+        assignment_repository: TeacherAssignmentRepository | None = None,
+        authorization: Authorization | None = None,
+    ) -> None:
         self._repository = repository or TeacherRepository()
+        self._assignment_repository = assignment_repository
+        self._authorization = authorization or Authorization(SUPER_ADMIN)
 
     def list(self) -> builtins.list[dict[str, Any]]:
+        self._authorization.require(TEACHERS_READ)
         return self._repository.list()
 
     def get(self, teacher_id: str) -> dict[str, Any] | None:
+        self._authorization.require(TEACHERS_READ)
         return find_by_id(self.list(), "teacher_id", teacher_id)
 
+    def salary_records(self) -> builtins.list[dict[str, Any]]:
+        self._authorization.require_any(TEACHERS_READ, TEACHERS_SALARY_SUMMARY)
+        if self._authorization.role == FINANCE_OFFICER:
+            return [{"salary": teacher["salary"]} for teacher in self._repository.list()]
+        return self._repository.list()
+
     def add(self, values: Mapping[str, object]) -> dict[str, Any]:
+        self._authorization.require(TEACHERS_WRITE)
         teacher = prepare_teacher(values)
         records = self.list()
         if find_by_id(records, "teacher_id", teacher["teacher_id"]):
@@ -31,6 +57,7 @@ class TeacherService:
         return teacher
 
     def update(self, existing_teacher_id: str, values: Mapping[str, object]) -> dict[str, Any]:
+        self._authorization.require(TEACHERS_WRITE)
         teacher = prepare_teacher(values)
         if teacher["teacher_id"].casefold() != existing_teacher_id.strip().casefold():
             raise ValidationError(
@@ -45,6 +72,13 @@ class TeacherService:
         return teacher
 
     def delete(self, teacher_id: str) -> dict[str, Any]:
+        self._authorization.require(TEACHERS_DELETE)
+        if self._assignment_repository and self._assignment_repository.references(
+            "teacher_id", teacher_id
+        ):
+            raise ValidationError(
+                "Cannot delete this teacher while subject assignments refer to them."
+            )
         records = self.list()
         index = find_index_by_id(records, "teacher_id", teacher_id)
         if index is None:

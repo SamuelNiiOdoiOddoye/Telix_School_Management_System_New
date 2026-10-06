@@ -4,6 +4,165 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
 
 **How to add an entry:** add a new `## [version] - date` section at the top, group changes under *Added*, *Changed*, *Fixed*, *Removed* or *Security*, and say *why* when it is not obvious. If a change moves or renames files, add rows to a mapping table so nothing is lost.
 
+## [Unreleased]
+
+### Added
+
+- Opt-in local demo self-registration from the login screen. Registration
+  validates identity/password input and assigns the fixed Teacher role.
+- Read-only User Management access summaries rendered from the existing V1
+  role capability sets.
+- Fixed V1 local roles (`SUPER_ADMIN`, `ADMIN`, `TEACHER`,
+  `FINANCE_OFFICER`, and `STUDENT`) with service-layer capability checks,
+  role-specific student fields, and linked-student scoping for student reads.
+- Repeatable development-only demo bootstrap with hidden, individually entered
+  passwords and a synthetic student record; existing accounts are never reset.
+- Super Admin/Admin User Management for account creation, role/contact updates,
+  and activation controls, with Admin role boundaries and student-link checks.
+- A portfolio-only synthetic Teacher account workflow using the documented
+  development credential; existing account passwords are never reset.
+- Role-scoped dashboard/report pages and service authorization regression tests.
+- Academic-period score summaries in the Academic Records workflow, using the
+  recorded year/term labels and stable catalog IDs for understandable history.
+- Teacher-to-subject assignments by academic year, including validation,
+  assignment maintenance, and deletion protection for referenced records.
+- A Teacher Assignments subtab in Academic Setup and an ignored local JSON
+  file for its records.
+- Local Super Admin login/logout, in-memory authenticated sessions, account
+  persistence, and salted `scrypt` password hashing.
+- One-time administrator bootstrap via `python -m telix.bootstrap_admin`, with
+  hidden password entry and protection against replacing an existing account.
+- Authentication and session tests, plus UI smoke coverage for login, logout,
+  and blocking the main application without an authenticated session.
+- Basic attendance CRUD and history filters for date, student, and class, with
+  status counts and an attendance percentage that excludes Excused records.
+- Student payment and expense ledgers with Decimal-safe summaries for receipts,
+  outstanding balances, retained overpayment credit, salaries, expenses, and
+  profit/loss.
+- Attendance and finance report tables, expanded dashboard financial metrics,
+  and CSV export for displayed reports.
+- Student Active/Inactive/Withdrawn status, status filtering and transition
+  validation, expanded dashboard metrics, and student/teacher/academic/
+  attendance/finance report filters.
+- Shared table empty-state feedback and a UI smoke test for report rendering
+  and filtering.
+- Attendance linkage to the effective student enrollment and academic year;
+  duplicate student/date entries and dates outside the valid enrollment period
+  are rejected.
+- New academic records can reference managed subjects, terms, and academic
+  years by stable catalog ID; existing text-only records remain supported.
+- Added configurable term/year grading profiles, weighted or unweighted
+  assessment calculations, component-score CRUD, grade bands, and an Assessments tab.
+- Added assessment component scores to Reports and CSV export.
+- Added transfer/promotion and withdrawal operations that preserve enrollment
+  history and update the enrollment collection in one save.
+- Student removal now cleans linked enrollment, academic, assessment, and
+  attendance records. The updates remain sequential across JSON files.
+- Student deletion is prevented while linked payment history exists; remove
+  or retain the payment records before deleting the student.
+- Attendance service tests and a manual desktop acceptance workflow.
+
+### Changed
+
+- Added the `TELIX_ENABLE_DEMO_REGISTRATION=1` development opt-in; the service
+  rejects self-registration when it is disabled.
+- The authenticated desktop workspace now opens a role-specific set of tabs;
+  the session uses the persisted account role rather than a login role selector.
+- The User Management tab is visible only to Super Admins and Admins. Admins
+  can manage only Teacher, Finance Officer, and Student accounts.
+- Dashboard and report refreshes avoid reading unauthorized domains and expose
+  finance salary totals without returning teacher personnel records.
+- Registered an Attendance tab with record, update, delete, filter, and summary
+  interactions.
+- Registered an Assessments tab with grading-profile setup, score entry,
+  updates, deletes, and grade calculation.
+- Added transfer/promotion and withdrawal controls to the enrollment editor.
+- Expanded the Finance tab for payment/expense maintenance and the Reports tab
+  for attendance, finance, and CSV export.
+- Added total expenses to the dashboard.
+- Refreshed the README and manual acceptance checklist to reflect available
+  lifecycle/status/report functionality without claiming the V1 phases complete.
+
+### Fixed
+
+- Preserved saved subject, term, and academic-year labels when editing an
+  existing linked academic record, so catalog renames do not rewrite history.
+- Labeled the class in academic reports as the student's current class, avoiding
+  the implication that it is a historical enrollment snapshot.
+- Prevented account updates from retaining stale student links or taking an
+  email address already used by another account.
+
+### Testing
+
+- Added tests for demo registration enablement, validation, duplicate emails,
+  role safety, persistence, and the login-screen registration dialog.
+- Added checks that User Management capability summaries reflect the existing
+  role definitions rather than custom per-user permissions.
+- Added coverage for supported-role authentication, student account linkage,
+  account bootstrap idempotency, service authorization, and cross-student data
+  isolation.
+- Added tests for account assignment boundaries, account activation, linked
+  student lifecycle, duplicate email rejection, and portfolio bootstrap safety.
+- Added teacher-assignment service coverage, assignment UI smoke coverage,
+  malformed assignment-storage validation, and academic-history regression
+  tests.
+
+### Documentation
+
+- Updated the README, manual acceptance checklist, and V1 overview with the
+  opt-in registration flow and production-disable guidance.
+- Updated the README, changelog, and manual acceptance checklist for teacher
+  assignments, per-period academic summaries, and the remaining lifecycle
+  timeline limitation.
+- Documented V1 account management and the synthetic development-only Teacher
+  portfolio credentials, including the production-use warning.
+
+### Security
+
+- Self-registration is opt-in and hardcodes the Teacher role; no caller-supplied
+  role can grant Admin or Super Admin access.
+- Self-registration reuses the existing password hashing and password policy.
+- Rejects unknown persisted roles and student accounts without a linked record.
+- Student logins fail safely when their linked student record is no longer
+  present; demo setup refuses to bind an account to a non-synthetic ID collision.
+- Protects the final active Super Admin from deactivation or demotion and
+  prevents Admins from inspecting or managing Super Admin/Admin accounts.
+- Enforces student ownership in service queries and narrows teacher/finance/
+  student data returned by student reads.
+- Added an ignore rule for the local attendance JSON file.
+- Added ignore rules for local payment and expense JSON files.
+
+---
+
+## [1.2.0] - 2026-10-06: Academic setup foundation
+
+This is an incremental V1.x delivery. It does not complete the V1.1 or V1.2
+acceptance criteria.
+
+### Added
+
+- Managed class, subject, academic-year, and term catalogs with generated IDs,
+  validation, JSON persistence, and a dedicated Academic Setup tab.
+- Effective-dated student enrollments linked to explicit student, class, and
+  academic-year IDs. Overlapping enrollments within an academic year are
+  rejected; terms and enrollments must fit their academic year.
+- Service tests for catalog uniqueness, date and relationship validation,
+  enrollment history, and protected referenced records.
+
+### Changed
+
+- Student removal now also removes associated enrollment records, avoiding
+  orphaned enrollments. As with the existing JSON workflow, these file updates
+  are sequential and not one cross-file transaction.
+- README now distinguishes current V1 capabilities, progressive V1.x work,
+  and planned V2 platform capabilities. It documents the new Academic Setup
+  workflow without claiming that all V1 requirements are complete.
+
+### Security
+
+- Added ignore rules for the new local classes, subjects, academic years,
+  terms, and enrollment JSON files.
+
 ---
 
 ## [1.1.0] - 2026-10-05: Modular restructure

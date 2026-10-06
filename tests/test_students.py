@@ -49,6 +49,39 @@ class StudentServiceTests(ServiceTestCase):
         self.assertTrue(self.students.exists("stu-002"))
         self.assertFalse(self.students.exists("nope"))
 
+    def test_student_status_defaults_validates_persists_and_filters(self):
+        self.students.add(valid_student())
+        inactive = self.students.add(valid_student(student_id="STU-002", status="inactive"))
+        active_again = self.students.update(
+            inactive["student_id"],
+            valid_student(student_id=inactive["student_id"], status="Active"),
+        )
+        self.assertEqual(active_again["status"], "Active")
+        withdrawn = self.students.update(
+            inactive["student_id"],
+            valid_student(student_id=inactive["student_id"], status="Withdrawn"),
+        )
+
+        self.assertEqual(self.students.get("STU-001")["status"], "Active")
+        self.assertEqual(withdrawn["status"], "Withdrawn")
+        self.assertEqual(
+            [student["student_id"] for student in self.students.by_status("inactive")],
+            [],
+        )
+        self.assertEqual(
+            [student["student_id"] for student in self.students.by_status("withdrawn")],
+            ["STU-002"],
+        )
+        with self.assertRaisesRegex(ValidationError, "status must be one of"):
+            self.students.add(valid_student(student_id="STU-003", status="Graduated"))
+
+    def test_withdrawn_student_must_be_reactivated_explicitly_before_other_status(self):
+        self.students.add(valid_student(status="Withdrawn"))
+        with self.assertRaisesRegex(ValidationError, "Cannot change student status"):
+            self.students.update("STU-001", valid_student(status="Inactive"))
+        reactivated = self.students.update("STU-001", valid_student(status="Active"))
+        self.assertEqual(reactivated["status"], "Active")
+
     def test_legacy_file_is_read_and_migrated_on_next_save(self):
         self.student_store.save(
             [{"ID": "OLD1", "Name": "Legacy", "DOB": "2015-01-01", "Class": "5", "Fees": 10}]
