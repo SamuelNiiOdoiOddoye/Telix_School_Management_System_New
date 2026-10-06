@@ -9,10 +9,11 @@ from typing import Any
 
 from telix.attendance.rules import ATTENDANCE_STATUSES
 from telix.authentication.roles import (
-    REPORTS_FINANCE,
     REPORTS_OPERATIONAL,
+    REPORTS_FINANCE,
     REPORTS_OWN,
     REPORTS_TEACHING,
+    STUDENT,
 )
 from telix.core.errors import StorageError, ValidationError
 from telix.core.formatting import format_currency
@@ -147,8 +148,19 @@ class ReportsTab(BaseTab):
             authorization.allows(capability)
             for capability in (REPORTS_OPERATIONAL, REPORTS_TEACHING, REPORTS_OWN)
         ):
+            self.student_columns = (
+                ("student_id", "name", "class_name", "status")
+                if authorization.role == STUDENT
+                else ("student_id", "name", "class_name", "status")
+                if authorization.allows(REPORTS_TEACHING)
+                and not authorization.allows(REPORTS_OPERATIONAL)
+                else STUDENT_COLUMNS
+            )
+            self.student_widths = (
+                (140, 220, 120, 120) if len(self.student_columns) == 4 else STUDENT_WIDTHS
+            )
             self.student_tree = self._build_page(
-                "Student Details", STUDENT_COLUMNS, STUDENT_WIDTHS, "students"
+                "Student Details", self.student_columns, self.student_widths, "students"
             )
         if authorization.allows(REPORTS_OPERATIONAL):
             self.teacher_tree = self._build_page(
@@ -212,11 +224,14 @@ class ReportsTab(BaseTab):
             if authorization.allows(REPORTS_FINANCE) and not authorization.allows(
                 REPORTS_OPERATIONAL
             ):
-                categories = sorted({row["category"] for row in services.finance.list("expense")})
-                category_options = ["All", *categories]
-                self.finance_category_box["values"] = category_options
-                if self.finance_category_filter.get() not in category_options:
-                    self.finance_category_filter.set("All")
+                if authorization.allows(REPORTS_FINANCE):
+                    categories = sorted(
+                        {row["category"] for row in services.finance.list("expense")}
+                    )
+                    category_options = ["All", *categories]
+                    self.finance_category_box["values"] = category_options
+                    if self.finance_category_filter.get() not in category_options:
+                        self.finance_category_filter.set("All")
                 self._render_finance()
                 return
             self.class_filter_box["values"] = ["All", *services.students.classes()]
@@ -258,7 +273,7 @@ class ReportsTab(BaseTab):
                     ]
                 render_records(self.teacher_tree, teachers, TEACHER_COLUMNS)
             if hasattr(self, "student_tree"):
-                render_records(self.student_tree, students, STUDENT_COLUMNS)
+                render_records(self.student_tree, students, self.student_columns)
             academic_query = self.academic_query.get().strip().casefold()
             self._render_academic_report(students, academic_query)
             self._render_assessments(students, academic_query)

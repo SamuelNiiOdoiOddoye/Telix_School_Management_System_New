@@ -44,13 +44,20 @@ Telix is a local desktop school-management application built with Python and Tki
 - Stores salted `scrypt` password hashes only. Passwords are excluded from
   authenticated-user objects, reports, and application log messages.
 - The one-time Super Admin bootstrap refuses to replace an existing
-  Super Admin. Additional accounts are created only by the explicit local
-  development demo bootstrap or by future account-management functionality.
+  Super Admin. Super Admins and Admins can manage accounts in the User
+  Management tab, subject to role-assignment and account-protection rules.
+- Super Admins can assign any V1 role. Admins can create and manage Teacher,
+  Finance Officer, and Student accounts only; they cannot view or modify
+  Super Admin/Admin accounts or create/promote a Super Admin.
+- Account management supports creation, contact/role updates, and activation
+  or deactivation. Student accounts must stay linked to an existing student.
+  The last active Super Admin cannot be deactivated or demoted, and a signed-in
+  administrator cannot deactivate or change their own role.
 
 | V1 role | Current access |
 | --- | --- |
-| `SUPER_ADMIN` | All V1 workflows and records |
-| `ADMIN` | School operations, academics, attendance, reports, and finance |
+| `SUPER_ADMIN` | All V1 workflows and records; full V1 account management |
+| `ADMIN` | School operations, academics, attendance, reports, finance, and limited account management |
 | `TEACHER` | Limited student identity/class details, academics, assessments, attendance, and teaching reports; no finance or teacher personnel files |
 | `FINANCE_OFFICER` | Fee/payment records, expenses, fee-relevant student fields, salary totals, and finance reports; no academic or teacher personal records |
 | `STUDENT` | Own linked student profile fields, academic history, assessments, attendance, and own reports only |
@@ -292,12 +299,30 @@ are missing: `demo-super-admin@telix.example.invalid`,
 `DEMO-STU-001` record only if that ID is absent and links the student account
 to it. It never resets an existing account or password. Each missing account's
 password and confirmation are entered interactively with hidden input; no
-demo password is published or embedded in source code. Do not run this
-bootstrap against production data.
+password is echoed. Do not run this bootstrap against production data.
+
+The portfolio-only path creates one synthetic Teacher account without
+prompting:
+
+```powershell
+python -m telix.bootstrap_demo_accounts --portfolio-only
+```
+
+**Development-only portfolio credentials**
+
+- Email: `demo-teacher@telix.example.invalid`
+- Password: `TelixDemo!2026`
+- Role: Teacher
+
+This account is synthetic, has no student link, and must never be used with
+production records or on a production installation. The bootstrap creates it
+only when that email is absent; it will not reset an existing account's
+password. Use a disposable checkout/data directory.
 
 On systems where the `python` launcher points to the wrong interpreter, use the full path to the desired Python executable in place of `python`.
 
-The app requires a graphical desktop session. The current test suite does not need to open a Tkinter window.
+The app requires a graphical desktop session. The current test suite does not
+need to open a Tkinter window.
 
 ## Run the tests
 
@@ -618,10 +643,10 @@ be represented as current V1 features.
 
 - The current application is local and single-machine. It supports fixed
   Super Admin, Admin, Teacher, Finance Officer, and linked Student V1 roles,
-  but has no tenant isolation, configurable role management, or coordinated
-  multi-user access. Authentication does not encrypt local JSON data at rest
-  or prevent access by a person who can read the account file or application
-  source on the same computer.
+  with local account assignment but no configurable permissions, tenant
+  isolation, or coordinated multi-user access. Authentication does not encrypt
+  local JSON data at rest or prevent access by a person who can read the account
+  file or application source on the same computer.
 - Local JSON persistence has no database constraints, inter-process locking,
   or transaction spanning multiple files. Student deletion updates linked
   record files sequentially and may be interrupted partway through; payment

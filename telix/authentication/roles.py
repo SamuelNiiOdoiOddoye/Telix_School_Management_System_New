@@ -72,6 +72,7 @@ _ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
             ATTENDANCE_DELETE,
             FINANCE_READ,
             FINANCE_WRITE,
+            USERS_MANAGE,
             REPORTS_OPERATIONAL,
             REPORTS_FINANCE,
             DASHBOARD_OPERATIONAL,
@@ -163,3 +164,12 @@ def capabilities_for(role: str) -> frozenset[str]:
     if role not in V1_ROLES:
         raise AuthorizationError("This account has an unsupported V1 role.")
     return _ROLE_CAPABILITIES[role]
+
+
+def assignable_roles(role: str) -> frozenset[str]:
+    """Return the account roles an administrator may assign through V1."""
+    if role == SUPER_ADMIN:
+        return V1_ROLES
+    if role == ADMIN:
+        return frozenset({TEACHER, FINANCE_OFFICER, STUDENT})
+    raise AuthorizationError("Your account cannot manage user roles.")

@@ -111,9 +111,26 @@ stored only as a salted `scrypt` hash in the ignored local `users.json` file.
 Login errors do not distinguish missing users from incorrect passwords, and
 logout clears the in-memory session.
 
-This addition is limited to one local desktop Super Admin. It does not introduce
-V2 organizations, tenant isolation, hosted services, APIs, multi-user roles,
-permission scopes, or subscription behavior. The local JSON data remains
-unencrypted at rest and accessible to operating-system users who can read the
-files. Full V1 manual acceptance and release checks are still required before
-calling V1 release-ready.
+This addition uses local JSON-backed authentication and V1 roles only. It does
+not introduce V2 organizations, tenant isolation, hosted services, APIs,
+multi-tenant permission scopes, or subscription behavior. The local JSON data
+remains unencrypted at rest and accessible to operating-system users who can
+read the files. Full V1 manual acceptance and release checks are still required
+before calling V1 release-ready.
+
+## Current V1 account-management addition
+
+Super Admins and Admins can open the V1 User Management tab. Super Admins can
+assign the supported V1 roles. Admins can manage Teacher, Finance Officer, and
+Student accounts, but cannot view or manage Admin/Super Admin accounts or
+create/promote a Super Admin. Student accounts require an existing linked
+student record. Administrators can update contact/role information and
+activate/deactivate accounts; passwords are never displayed, and the last
+active Super Admin cannot be deactivated or demoted.
+
+For a disposable development checkout only, `python -m
+telix.bootstrap_demo_accounts --portfolio-only` creates the synthetic Teacher
+account `demo-teacher@telix.example.invalid` with password `TelixDemo!2026`.
+These public portfolio credentials are not for production use. The bootstrap
+does not reset an existing account password. Do not run the demo bootstrap
+against production data.

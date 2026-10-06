@@ -20,7 +20,14 @@ from telix.authentication.roles import (
 )
 from telix.authentication.service import AuthenticationService
 from telix.authentication.session import UserSession
-from telix.bootstrap_demo_accounts import DEMO_ACCOUNTS, DEMO_STUDENT_ID, run_demo_bootstrap
+from telix.authentication.user_management import UserManagementService
+from telix.bootstrap_demo_accounts import (
+    DEMO_ACCOUNTS,
+    DEMO_STUDENT_ID,
+    PORTFOLIO_DEMO_EMAIL,
+    PORTFOLIO_DEMO_PASSWORD,
+    run_demo_bootstrap,
+)
 from telix.core.errors import AuthorizationError, ValidationError
 from telix.storage.json_store import JsonStore
 from telix.students.repository import StudentRepository
@@ -48,6 +55,7 @@ class RoleAuthenticationTests(unittest.TestCase):
                 f"+1202555013{index}",
                 password,
                 role,
+                authorization=Authorization(SUPER_ADMIN),
                 student_id="DEMO-STU-001" if role == STUDENT else "",
             )
             authenticated = self.authentication.authenticate(user.email, password)
@@ -61,26 +69,35 @@ class RoleAuthenticationTests(unittest.TestCase):
             session.start(authenticated)
             self.assertTrue(session.authenticated)
 
-    def test_student_accounts_require_student_link_and_super_admin_is_unique(self) -> None:
+    def test_student_accounts_require_link_and_super_admin_creation_is_authorized(self) -> None:
+        self.authentication.create_super_admin(
+            "Admin", "admin@example.invalid", "+12025550131", secrets.token_urlsafe(24)
+        )
+        management = UserManagementService(self.authentication, Authorization(SUPER_ADMIN))
         with self.assertRaisesRegex(ValidationError, "must link to an existing"):
-            self.authentication.create_account(
+            management.create(
                 "Student",
                 "student@example.invalid",
                 "+12025550130",
                 secrets.token_urlsafe(24),
                 STUDENT,
             )
-        self.authentication.create_super_admin(
-            "Admin", "admin@example.invalid", "+12025550131", secrets.token_urlsafe(24)
-        )
-        with self.assertRaisesRegex(ValidationError, "Super Admin account already exists"):
+        with self.assertRaises(AuthorizationError):
             self.authentication.create_account(
                 "Second",
                 "second@example.invalid",
                 "+12025550132",
                 secrets.token_urlsafe(24),
-                SUPER_ADMIN,
+                TEACHER,
             )
+        second = management.create(
+            "Second Super Admin",
+            "second@example.invalid",
+            "+12025550132",
+            secrets.token_urlsafe(24),
+            SUPER_ADMIN,
+        )
+        self.assertEqual(second.role, SUPER_ADMIN)
 
     def test_student_account_cannot_authenticate_after_linked_record_disappears(self) -> None:
         password = secrets.token_urlsafe(24)
@@ -90,6 +107,7 @@ class RoleAuthenticationTests(unittest.TestCase):
             "+12025550135",
             password,
             STUDENT,
+            authorization=Authorization(SUPER_ADMIN),
             student_id=DEMO_STUDENT_ID,
         )
         authentication_without_student = AuthenticationService(
@@ -153,6 +171,41 @@ class RoleAuthenticationTests(unittest.TestCase):
                         message=lambda _message: None,
                     )
             self.assertEqual(authentication.repository.list(), [])
+
+    def test_portfolio_demo_bootstrap_creates_only_the_fixed_synthetic_teacher(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            students = StudentService(
+                StudentRepository(JsonStore(Path(directory) / "student_records.json"))
+            )
+            authentication = AuthenticationService(
+                UserRepository(JsonStore(Path(directory) / "users.json")),
+                students.exists,
+            )
+            prompt = unittest.mock.Mock(side_effect=AssertionError("must not prompt"))
+            with patch.dict(os.environ, {"TELIX_DEVELOPMENT_DEMO_BOOTSTRAP": "1"}):
+                created = run_demo_bootstrap(
+                    authentication,
+                    students,
+                    password_prompt=prompt,
+                    message=lambda _message: None,
+                    portfolio_only=True,
+                )
+                repeated = run_demo_bootstrap(
+                    authentication,
+                    students,
+                    password_prompt=prompt,
+                    message=lambda _message: None,
+                    portfolio_only=True,
+                )
+
+            self.assertEqual(created, [PORTFOLIO_DEMO_EMAIL])
+            self.assertEqual(repeated, [])
+            self.assertEqual(len(authentication.repository.list()), 1)
+            self.assertEqual(
+                authentication.authenticate(PORTFOLIO_DEMO_EMAIL, PORTFOLIO_DEMO_PASSWORD).role,
+                TEACHER,
+            )
+            self.assertEqual(students.list(), [])
 
 
 class ServiceAuthorizationTests(ServiceTestCase):

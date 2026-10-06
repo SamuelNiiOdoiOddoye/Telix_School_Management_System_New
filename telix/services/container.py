@@ -7,7 +7,10 @@ from dataclasses import dataclass, field
 from telix.attendance.repository import AttendanceRepository
 from telix.attendance.service import AttendanceService
 from telix.authentication.roles import Authorization, SUPER_ADMIN
+from telix.authentication.repository import UserRepository
 from telix.authentication.service import AuthenticatedUser
+from telix.authentication.service import AuthenticationService
+from telix.authentication.user_management import UserManagementService
 from telix.academics.assessment_repository import AssessmentRepository
 from telix.academics.assessment_service import AssessmentService
 from telix.academics.service import AcademicRecordService
@@ -33,6 +36,7 @@ class Services:
     student_removal: StudentRemovalService
     teacher_assignments: TeacherAssignmentService
     authorization: Authorization = field(default_factory=lambda: Authorization(SUPER_ADMIN))
+    user_management: UserManagementService | None = None
 
     def __post_init__(self) -> None:
         service_authorizations = (
@@ -47,6 +51,11 @@ class Services:
         )
         if any(policy != self.authorization for policy in service_authorizations):
             raise ValueError("All application services must share one authorization policy.")
+        if (
+            self.user_management is not None
+            and self.user_management._authorization != self.authorization
+        ):
+            raise ValueError("User management must share the application authorization policy.")
 
 
 def build_services(user: AuthenticatedUser | None = None) -> Services:
@@ -80,8 +89,15 @@ def build_services(user: AuthenticatedUser | None = None) -> Services:
         AttendanceRepository(), academic_structure, students.exists, authorization
     )
     finance = FinanceLedgerService(FinanceRepository(), students.exists, authorization)
+    authentication = AuthenticationService(UserRepository(), students.exists)
+    user_management = UserManagementService(
+        authentication,
+        authorization,
+        user.user_id if user is not None else "",
+    )
     return Services(
         authorization=authorization,
+        user_management=user_management,
         students=students,
         teachers=teachers,
         academics=academics,

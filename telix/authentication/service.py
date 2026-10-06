@@ -10,8 +10,15 @@ from uuid import uuid4
 
 from telix.authentication.passwords import hash_password, verify_password
 from telix.authentication.repository import UserRepository
-from telix.authentication.roles import SUPER_ADMIN, STUDENT, V1_ROLES
-from telix.core.errors import ValidationError
+from telix.authentication.roles import (
+    SUPER_ADMIN,
+    STUDENT,
+    USERS_MANAGE,
+    Authorization,
+    V1_ROLES,
+    assignable_roles,
+)
+from telix.core.errors import AuthorizationError, ValidationError
 from telix.core.validators import require_fields, validate_email, validate_phone
 
 _PASSWORD_MIN_LENGTH = 12
@@ -43,7 +50,7 @@ class AuthenticationService:
     ) -> AuthenticatedUser:
         if self.repository.has_super_admin():
             raise ValidationError("A Super Admin account already exists.")
-        return self.create_account(name, email, phone, password, SUPER_ADMIN)
+        return self._create_account_record(name, email, phone, password, SUPER_ADMIN)
 
     def create_account(
         self,
@@ -53,8 +60,37 @@ class AuthenticationService:
         password: str,
         role: str,
         *,
+        authorization: Authorization | None = None,
         student_id: str = "",
         _allow_additional_super_admin: bool = False,
+    ) -> AuthenticatedUser:
+        if authorization is None:
+            raise AuthorizationError("Use authorized user management to create accounts.")
+        authorization.require(USERS_MANAGE)
+        if role not in assignable_roles(authorization.role):
+            raise AuthorizationError("Your account cannot assign this V1 role.")
+        return self._create_account_record(
+            name,
+            email,
+            phone,
+            password,
+            role,
+            student_id=student_id,
+            allow_additional_super_admin=(
+                _allow_additional_super_admin or authorization.role == SUPER_ADMIN
+            ),
+        )
+
+    def _create_account_record(
+        self,
+        name: str,
+        email: str,
+        phone: str,
+        password: str,
+        role: str,
+        *,
+        student_id: str = "",
+        allow_additional_super_admin: bool = False,
     ) -> AuthenticatedUser:
         values = require_fields(
             {"name": name, "email": email, "phone": phone},
@@ -62,16 +98,12 @@ class AuthenticationService:
         )
         if role not in V1_ROLES:
             raise ValidationError("Select a supported V1 role.")
-        if role == STUDENT and (
-            not student_id.strip()
-            or self._student_exists is None
-            or not self._student_exists(student_id.strip().upper())
-        ):
+        if role == STUDENT and not self.student_exists(student_id.strip().upper()):
             raise ValidationError("A student account must link to an existing student record.")
         if (
             role == SUPER_ADMIN
             and self.repository.has_super_admin()
-            and not _allow_additional_super_admin
+            and not allow_additional_super_admin
         ):
             raise ValidationError("A Super Admin account already exists.")
         normalized_email = validate_email(values["email"]).casefold()
@@ -109,14 +141,14 @@ class AuthenticationService:
             raise ValidationError(
                 "Demo accounts can only be created by the explicit dev bootstrap."
             )
-        return self.create_account(
+        return self._create_account_record(
             name,
             email,
             phone,
             password,
             role,
             student_id=student_id,
-            _allow_additional_super_admin=True,
+            allow_additional_super_admin=True,
         )
 
     def authenticate(self, email: str, password: str) -> AuthenticatedUser | None:
@@ -140,6 +172,14 @@ class AuthenticationService:
 
     def has_super_admin(self) -> bool:
         return self.repository.has_super_admin()
+
+    def student_exists(self, student_id: str) -> bool:
+        normalized_id = student_id.strip().upper()
+        return bool(
+            normalized_id
+            and self._student_exists is not None
+            and self._student_exists(normalized_id)
+        )
 
     @staticmethod
     def _validate_password(password: str) -> None:

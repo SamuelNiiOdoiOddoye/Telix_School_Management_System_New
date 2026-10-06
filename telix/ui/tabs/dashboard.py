@@ -12,6 +12,7 @@ from telix.authentication.roles import (
     DASHBOARD_OWN,
     DASHBOARD_TEACHING,
     STUDENTS_WRITE,
+    USERS_MANAGE,
 )
 from telix.ui.tabs.base import BaseTab, TabContext
 from telix.ui.theme import HEADING_FONT
@@ -38,6 +39,7 @@ QUICK_ACTIONS = (
     ("Record Attendance", "attendance"),
     ("Open Finance", "finance"),
     ("Open Reports", "reports"),
+    ("Manage Users", "users"),
 )
 
 
@@ -137,6 +139,7 @@ class DashboardTab(BaseTab):
                     DASHBOARD_FINANCE,
                     DASHBOARD_OWN,
                 ),
+                "users": (USERS_MANAGE,),
             }.get(tab_key, ())
             if not any(
                 self.context.services.authorization.allows(capability) for capability in required

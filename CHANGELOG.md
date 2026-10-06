@@ -13,6 +13,10 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
   role-specific student fields, and linked-student scoping for student reads.
 - Repeatable development-only demo bootstrap with hidden, individually entered
   passwords and a synthetic student record; existing accounts are never reset.
+- Super Admin/Admin User Management for account creation, role/contact updates,
+  and activation controls, with Admin role boundaries and student-link checks.
+- A portfolio-only synthetic Teacher account workflow using the documented
+  development credential; existing account passwords are never reset.
 - Role-scoped dashboard/report pages and service authorization regression tests.
 - Academic-period score summaries in the Academic Records workflow, using the
   recorded year/term labels and stable catalog IDs for understandable history.
@@ -58,6 +62,8 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
 
 - The authenticated desktop workspace now opens a role-specific set of tabs;
   the session uses the persisted account role rather than a login role selector.
+- The User Management tab is visible only to Super Admins and Admins. Admins
+  can manage only Teacher, Finance Officer, and Student accounts.
 - Dashboard and report refreshes avoid reading unauthorized domains and expose
   finance salary totals without returning teacher personnel records.
 - Registered an Attendance tab with record, update, delete, filter, and summary
@@ -77,12 +83,16 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
   existing linked academic record, so catalog renames do not rewrite history.
 - Labeled the class in academic reports as the student's current class, avoiding
   the implication that it is a historical enrollment snapshot.
+- Prevented account updates from retaining stale student links or taking an
+  email address already used by another account.
 
 ### Testing
 
 - Added coverage for supported-role authentication, student account linkage,
   account bootstrap idempotency, service authorization, and cross-student data
   isolation.
+- Added tests for account assignment boundaries, account activation, linked
+  student lifecycle, duplicate email rejection, and portfolio bootstrap safety.
 - Added teacher-assignment service coverage, assignment UI smoke coverage,
   malformed assignment-storage validation, and academic-history regression
   tests.
@@ -92,12 +102,16 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
 - Updated the README, changelog, and manual acceptance checklist for teacher
   assignments, per-period academic summaries, and the remaining lifecycle
   timeline limitation.
+- Documented V1 account management and the synthetic development-only Teacher
+  portfolio credentials, including the production-use warning.
 
 ### Security
 
 - Rejects unknown persisted roles and student accounts without a linked record.
 - Student logins fail safely when their linked student record is no longer
   present; demo setup refuses to bind an account to a non-synthetic ID collision.
+- Protects the final active Super Admin from deactivation or demotion and
+  prevents Admins from inspecting or managing Super Admin/Admin accounts.
 - Enforces student ownership in service queries and narrows teacher/finance/
   student data returned by student reads.
 - Added an ignore rule for the local attendance JSON file.

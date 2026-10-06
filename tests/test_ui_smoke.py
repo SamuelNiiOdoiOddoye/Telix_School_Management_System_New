@@ -4,9 +4,10 @@ import tkinter as tk
 import secrets
 
 from telix.authentication.service import AuthenticatedUser, AuthenticationService
-from telix.authentication.roles import STUDENT, TEACHER, Authorization
+from telix.authentication.roles import ADMIN, STUDENT, SUPER_ADMIN, TEACHER, Authorization
 from telix.authentication.repository import UserRepository
 from telix.authentication.session import UserSession
+from telix.authentication.user_management import UserManagementService
 from telix.storage.json_store import JsonStore
 from telix.services.container import Services
 from telix.ui.login import LoginScreen
@@ -46,6 +47,7 @@ class DesktopStartupSmokeTests(ServiceTestCase):
                 self.finance,
                 self.removal,
                 self.teacher_assignments,
+                user_management=self._user_management_for_role(SUPER_ADMIN),
             )
             application = SchoolManagementSystem(root, services, self._session(), lambda: None)
             root.update()
@@ -70,6 +72,7 @@ class DesktopStartupSmokeTests(ServiceTestCase):
                 self.finance,
                 self.removal,
                 self.teacher_assignments,
+                user_management=self._user_management_for_role(SUPER_ADMIN),
             )
             application = SchoolManagementSystem(root, services, self._session(), lambda: None)
             reports = application.tabs["reports"]
@@ -132,6 +135,7 @@ class DesktopStartupSmokeTests(ServiceTestCase):
                 self.finance,
                 self.removal,
                 self.teacher_assignments,
+                user_management=self._user_management_for_role(SUPER_ADMIN),
             )
             application = SchoolManagementSystem(root, services, self._session(), lambda: None)
             setup = application.tabs["academic_setup"]
@@ -194,7 +198,16 @@ class DesktopStartupSmokeTests(ServiceTestCase):
             self.removal,
             self.teacher_assignments,
             authorization=authorization,
+            user_management=self._user_management_for_role(role, student_id),
         )
+
+    def _user_management_for_role(self, role: str, student_id: str = "") -> UserManagementService:
+        authorization = Authorization(role, student_id)
+        authentication = AuthenticationService(
+            UserRepository(JsonStore(self.directory / f"users-{role}.json")),
+            self.students.exists,
+        )
+        return UserManagementService(authentication, authorization, "USR-TEST")
 
     def test_teacher_workspace_limits_tabs_and_student_personal_fields(self) -> None:
         try:
@@ -225,9 +238,44 @@ class DesktopStartupSmokeTests(ServiceTestCase):
             self.assertNotIn("finance", application.tabs)
             self.assertNotIn("teachers", application.tabs)
             self.assertNotIn("academic_setup", application.tabs)
+            self.assertNotIn("users", application.tabs)
             self.assertEqual(
                 tuple(application.tabs["students"].tree["columns"]),
                 ("student_id", "name", "class_name", "status"),
+            )
+            application.logout()
+        finally:
+            root.destroy()
+
+    def test_admin_workspace_exposes_restricted_user_management(self) -> None:
+        try:
+            root = tk.Tk()
+        except tk.TclError as error:
+            self.skipTest(f"Tk desktop display is unavailable: {error}")
+        try:
+            root.withdraw()
+            session = UserSession()
+            session.start(
+                AuthenticatedUser(
+                    user_id="USR-ADMIN",
+                    name="Test Admin",
+                    email="admin@example.invalid",
+                    phone="+12025550123",
+                    role=ADMIN,
+                )
+            )
+            application = SchoolManagementSystem(
+                root,
+                self._services_for_role(ADMIN),
+                session,
+                lambda: None,
+            )
+
+            self.assertIn("users", application.tabs)
+            self.assertNotIn(SUPER_ADMIN, application.tabs["users"].role_box["values"])
+            self.assertEqual(
+                set(application.tabs["users"].role_box["values"]) - {""},
+                {"TEACHER", "FINANCE_OFFICER", STUDENT},
             )
             application.logout()
         finally:
@@ -270,6 +318,7 @@ class DesktopStartupSmokeTests(ServiceTestCase):
                 "STU-001",
             )
             self.assertNotIn("finance_tree", reports.__dict__)
+            self.assertNotIn("users", application.tabs)
             application.logout()
         finally:
             root.destroy()
@@ -291,6 +340,7 @@ class DesktopStartupSmokeTests(ServiceTestCase):
                 self.finance,
                 self.removal,
                 self.teacher_assignments,
+                user_management=self._user_management_for_role(SUPER_ADMIN),
             )
             with self.assertRaisesRegex(ValueError, "authenticated session is required"):
                 SchoolManagementSystem(root, services, UserSession(), lambda: None)
@@ -370,6 +420,7 @@ class DesktopStartupSmokeTests(ServiceTestCase):
                 self.finance,
                 self.removal,
                 self.teacher_assignments,
+                user_management=self._user_management_for_role(SUPER_ADMIN),
             )
             controller = ApplicationController(root, authentication, lambda: services)
             controller.start()

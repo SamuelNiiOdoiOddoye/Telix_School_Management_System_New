@@ -71,6 +71,22 @@ class UserRepository:
     def has_super_admin(self) -> bool:
         return any(user.get("role") == "SUPER_ADMIN" for user in self.list())
 
+    def active_super_admin_count(self) -> int:
+        return sum(
+            user.get("role") == "SUPER_ADMIN" and user.get("active") is True for user in self.list()
+        )
+
+    def find_by_id(self, user_id: str) -> dict[str, Any] | None:
+        target = user_id.strip().casefold()
+        return next(
+            (
+                user
+                for user in self.list()
+                if str(user.get("user_id", "")).strip().casefold() == target
+            ),
+            None,
+        )
+
     def set_active(self, user_id: str, is_active: bool) -> bool:
         users = self.list()
         for user in users:
@@ -80,3 +96,28 @@ class UserRepository:
                 self._store.save(users)
                 return True
         return False
+
+    def update_account(self, user_id: str, updates: dict[str, Any]) -> dict[str, Any] | None:
+        users = self.list()
+        target = user_id.strip().casefold()
+        index = next(
+            (
+                position
+                for position, user in enumerate(users)
+                if str(user.get("user_id", "")).strip().casefold() == target
+            ),
+            None,
+        )
+        if index is None:
+            return None
+        updated = {**users[index], **updates}
+        if any(
+            str(existing.get("email", "")).casefold() == str(updated["email"]).casefold()
+            and existing.get("user_id") != updated.get("user_id")
+            for existing in users
+        ):
+            raise ValidationError("An account with this email already exists.")
+        updated["updated_at"] = datetime.now(timezone.utc).isoformat()
+        users[index] = updated
+        self._store.save(users)
+        return updated

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import getpass
 import os
 from collections.abc import Callable
@@ -18,6 +19,8 @@ from telix.core.errors import ValidationError
 from telix.students.service import StudentService
 
 DEMO_STUDENT_ID = "DEMO-STU-001"
+PORTFOLIO_DEMO_EMAIL = "demo-teacher@telix.example.invalid"
+PORTFOLIO_DEMO_PASSWORD = "TelixDemo!2026"
 DEMO_ACCOUNTS = (
     ("Demo Super Admin", "demo-super-admin@telix.example.invalid", "+12025550120", SUPER_ADMIN),
     ("Demo Administrator", "demo-admin@telix.example.invalid", "+12025550121", ADMIN),
@@ -37,11 +40,38 @@ def run_demo_bootstrap(
     students: StudentService,
     password_prompt: Callable[[str], str] = getpass.getpass,
     message: Callable[[str], None] = print,
+    *,
+    portfolio_only: bool = False,
 ) -> list[str]:
     """Create missing demo users without changing existing accounts or passwords."""
     if os.environ.get("TELIX_DEVELOPMENT_DEMO_BOOTSTRAP") != "1":
         raise ValidationError("Run the explicit development demo bootstrap command.")
-    for _, email, _, role in DEMO_ACCOUNTS:
+    accounts = (
+        (("Portfolio Demo Teacher", PORTFOLIO_DEMO_EMAIL, "+12025550122", TEACHER),)
+        if portfolio_only
+        else DEMO_ACCOUNTS
+    )
+    if portfolio_only:
+        existing = authentication.repository.find_by_email(PORTFOLIO_DEMO_EMAIL)
+        if existing is not None and existing.get("role") != TEACHER:
+            raise ValidationError(
+                f"The reserved demo email {PORTFOLIO_DEMO_EMAIL} is already assigned "
+                "to another role."
+            )
+        if existing is not None:
+            message("The portfolio Teacher account already exists; its password was not changed.")
+            return []
+        authentication.create_development_demo_account(
+            "Portfolio Demo Teacher",
+            PORTFOLIO_DEMO_EMAIL,
+            "+12025550122",
+            PORTFOLIO_DEMO_PASSWORD,
+            TEACHER,
+        )
+        message(f"Created portfolio Teacher account: {PORTFOLIO_DEMO_EMAIL}")
+        return [PORTFOLIO_DEMO_EMAIL]
+
+    for _, email, _, role in accounts:
         existing = authentication.repository.find_by_email(email)
         if existing is not None and existing.get("role") != role:
             raise ValidationError(
@@ -82,7 +112,7 @@ def run_demo_bootstrap(
         )
 
     created: list[str] = []
-    for name, email, phone, role in DEMO_ACCOUNTS:
+    for name, email, phone, role in accounts:
         existing = authentication.repository.find_by_email(email)
         if existing is not None:
             continue
@@ -105,6 +135,14 @@ def run_demo_bootstrap(
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Create development-only V1 demo accounts.")
+    parser.add_argument(
+        "--portfolio-only",
+        action="store_true",
+        help="Create only the synthetic portfolio Teacher account.",
+    )
+    args = parser.parse_args()
+
     from telix.services.container import build_services
 
     services = build_services()
@@ -112,7 +150,11 @@ def main() -> None:
     os.environ["TELIX_DEVELOPMENT_DEMO_BOOTSTRAP"] = "1"
     try:
         authentication = AuthenticationService(student_exists=services.students.exists)
-        created = run_demo_bootstrap(authentication, services.students)
+        created = run_demo_bootstrap(
+            authentication,
+            services.students,
+            portfolio_only=args.portfolio_only,
+        )
     finally:
         if previous_flag is None:
             os.environ.pop("TELIX_DEVELOPMENT_DEMO_BOOTSTRAP", None)

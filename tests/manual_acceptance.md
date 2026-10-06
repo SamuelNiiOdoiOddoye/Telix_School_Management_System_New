@@ -6,6 +6,14 @@ creates backups on writes. Do not test against a live data directory.
 
 ## Current V1 workflows
 
+- [ ] In a disposable checkout with no `users.json`, run
+      `python -m telix.bootstrap_demo_accounts --portfolio-only`. Confirm it
+      creates only `demo-teacher@telix.example.invalid`, does not prompt for a
+      password, and allows login with the README's clearly marked development-
+      only portfolio credential.
+- [ ] Run the portfolio-only bootstrap again. Confirm it does not prompt or
+      replace the existing account/password. Do not run it against production
+      data.
 - [ ] In a disposable copy, run `python -m telix.bootstrap_demo_accounts`.
       Enter a distinct password and confirmation at each hidden prompt. Confirm
       that no password is echoed, five reserved `.invalid` accounts are created,
@@ -33,13 +41,25 @@ creates backups on writes. Do not test against a live data directory.
       echoing the password and creates an ignored `users.json`.
 - [ ] Run bootstrap again and confirm it does not prompt for or replace the
       existing account.
+- [ ] As Super Admin, open User Management, create Teacher, Finance Officer,
+      Student, Admin, and a second Super Admin accounts, and verify searches,
+      updates, activation, deactivation confirmation, and persistence. Confirm
+      password hashes are never shown in the table or saved as plaintext.
+- [ ] As Admin, verify User Management is available but only Teacher, Finance
+      Officer, and Student accounts are listed or assignable. Confirm direct
+      service calls cannot create/promote or manage Admin/Super Admin accounts.
+- [ ] Confirm student accounts cannot be created or changed without an
+      existing linked student ID, and changing a Student account to another
+      role clears that link. Confirm the final active Super Admin cannot be
+      deactivated or demoted and a signed-in administrator cannot deactivate
+      or change their own role.
 - [ ] Launch with `python .\main.py` and verify login appears before any school
       management tabs. Try an unknown email, wrong password, and the correct
       email with different letter casing. Failures should show the same generic
       error; only valid credentials should open the workspace.
 - [ ] Launch with `python .\main.py` and confirm the window opens with
       Dashboard, Students, Teachers, Academic Records, Assessments, Academic
-      Setup, Attendance, Reports, and Finance tabs.
+      Setup, Attendance, Reports, Finance, and User Management tabs.
 - [ ] Add a synthetic student (for example, ID `TEST-STU-001`, name `Test
       Student`, date of birth `2014-05-04`, class `Grade 1`, fee `125.50`,
       gender `Other`, address `Test Address`, phone `+10000000001`, email

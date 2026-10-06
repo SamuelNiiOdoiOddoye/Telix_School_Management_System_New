@@ -24,6 +24,7 @@ from telix.ui.tabs.finance import FinanceTab
 from telix.ui.tabs.reports import ReportsTab
 from telix.ui.tabs.students import StudentsTab
 from telix.ui.tabs.teachers import TeachersTab
+from telix.ui.tabs.users import UserManagementTab
 from telix.ui.theme import configure_style
 from telix.ui.window import apply_window_icon
 
@@ -38,6 +39,7 @@ TAB_CLASSES: tuple[type[BaseTab], ...] = (
     AttendanceTab,
     ReportsTab,
     FinanceTab,
+    UserManagementTab,
 )
 
 
@@ -115,6 +117,7 @@ class SchoolManagementSystem:
             "attendance": {SUPER_ADMIN, ADMIN, TEACHER},
             "reports": {SUPER_ADMIN, ADMIN, TEACHER, FINANCE_OFFICER, STUDENT},
             "finance": {SUPER_ADMIN, ADMIN, FINANCE_OFFICER},
+            "users": {SUPER_ADMIN, ADMIN},
         }
         for tab_class in TAB_CLASSES:
             if user.role not in visible_roles.get(tab_class.key, set()):
