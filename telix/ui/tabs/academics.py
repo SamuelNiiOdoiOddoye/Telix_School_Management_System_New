@@ -6,10 +6,10 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Any
 
-from telix.academics.defaults import DEFAULT_TERM, default_academic_year
+from telix.academics.structure_repository import StructureKind
 from telix.core.errors import StorageError
 from telix.ui.tabs.base import BaseTab, TabContext
-from telix.ui.widgets.forms import add_button_row, add_search_entry, build_form_fields
+from telix.ui.widgets.forms import add_button_row, add_form_field, add_search_entry
 from telix.ui.widgets.tables import create_tree, render_records
 
 FORM_FIELDS = (
@@ -34,6 +34,7 @@ class AcademicsTab(BaseTab):
         self.search_student_id = tk.StringVar()
         self.student_summary = tk.StringVar(value=STUDENT_PROMPT)
         self.selected_id: str | None = None
+        self.selectors: dict[str, ttk.Combobox] = {}
         self._build_form()
         self._build_tools()
         self._build_table()
@@ -42,7 +43,15 @@ class AcademicsTab(BaseTab):
     def _build_form(self) -> None:
         form = ttk.LabelFrame(self.frame, text="Academic record", padding=12)
         form.pack(fill="x")
-        rows = build_form_fields(form, FORM_FIELDS, self.variables)
+        for index, (field, label) in enumerate(FORM_FIELDS):
+            row, column = divmod(index, 3)
+            choices = ("",) if field in {"subject", "term", "academic_year"} else None
+            add_form_field(form, label, self.variables[field], row, column * 2, choices)
+            if choices:
+                widget = form.grid_slaves(row=row, column=column * 2 + 1)[0]
+                if isinstance(widget, ttk.Combobox):
+                    self.selectors[field] = widget
+        rows = -(-len(FORM_FIELDS) // 3)
         ttk.Label(form, textvariable=self.student_summary, style="Subtitle.TLabel").grid(
             row=rows, column=0, columnspan=6, sticky="w", pady=(8, 0)
         )
@@ -134,13 +143,21 @@ class AcademicsTab(BaseTab):
         self.selected_id = None
         for variable in self.variables.values():
             variable.set("")
-        self.variables["term"].set(DEFAULT_TERM)
-        self.variables["academic_year"].set(default_academic_year())
         self.student_summary.set(STUDENT_PROMPT)
 
     # --- internals ----------------------------------------------------------
     def _form_values(self) -> dict[str, str]:
-        return {name: variable.get() for name, variable in self.variables.items()}
+        values = {name: variable.get().strip() for name, variable in self.variables.items()}
+        for field, selector in self.selectors.items():
+            selected = selector.get().strip()
+            if " [" in selected and selected.endswith("]"):
+                label, identifier = selected.rsplit(" [", 1)
+                values[field] = label
+                values[f"{field}_id"] = identifier[:-1]
+            else:
+                values[field] = selected
+                values[f"{field}_id"] = ""
+        return values
 
     def _on_row_selected(self, _: tk.Event[Any]) -> None:
         selected_items = self.tree.selection()
@@ -150,8 +167,17 @@ class AcademicsTab(BaseTab):
         if not record:
             return
         self.selected_id = record["academic_id"]
+        reference_fields: dict[str, tuple[StructureKind, str]] = {
+            "subject": ("subject", "subject_id"),
+            "term": ("term", "term_id"),
+            "academic_year": ("academic_year", "academic_year_id"),
+        }
         for name, variable in self.variables.items():
-            variable.set(str(record.get(name, "")))
+            value = str(record.get(name, ""))
+            if name in reference_fields:
+                kind, id_field = reference_fields[name]
+                value = self._reference_label(kind, str(record.get(id_field, "")), value)
+            variable.set(value)
         student = self.context.services.students.get(record["student_id"])
         if student:
             self._show_student(student)
@@ -167,6 +193,36 @@ class AcademicsTab(BaseTab):
         render_records(self.tree, records, TABLE_COLUMNS)
 
     def refresh(self) -> None:
-        self._render(self.context.services.academics.list())
-        if not self.selected_id:
-            self.clear_form()
+        try:
+            records = self.context.services.academics.list()
+            structure = self.context.services.academic_structure
+            reference_fields: dict[str, tuple[StructureKind, str, str]] = {
+                "subject": ("subject", "subject_id", "subject"),
+                "term": ("term", "term_id", "term"),
+                "academic_year": ("academic_year", "academic_year_id", "academic_year"),
+            }
+            for field, (kind, id_field, label_field) in reference_fields.items():
+                options = [
+                    f"{item['name']} [{item[id_field]}]"
+                    for item in structure.list(kind)
+                    if item.get("name") and item.get(id_field)
+                ]
+                options.extend(
+                    str(record[label_field])
+                    for record in records
+                    if not record.get(id_field) and record.get(label_field)
+                )
+                self.selectors[field]["values"] = ("", *dict.fromkeys(options))
+            self._render(records)
+            if not self.selected_id:
+                self.clear_form()
+        except StorageError as error:
+            self.context.feedback.error(str(error))
+
+    def _reference_label(self, kind: StructureKind, entity_id: str, fallback: str) -> str:
+        if not entity_id:
+            return fallback
+        records = self.context.services.academic_structure.list(kind)
+        id_field = f"{kind}_id"
+        match = next((item for item in records if item.get(id_field) == entity_id), None)
+        return f"{match['name']} [{entity_id}]" if match else fallback

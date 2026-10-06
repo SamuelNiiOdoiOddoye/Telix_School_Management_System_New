@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import builtins
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, Callable, Mapping
 
 from telix.academics.structure_repository import AcademicStructureRepository, StructureKind
-from telix.core.errors import ValidationError
+from telix.core.errors import StorageError, ValidationError
 from telix.core.identifiers import generate_id
 from telix.core.text import clean_text
 
@@ -104,6 +104,11 @@ class AcademicStructureService:
     def list(self, kind: StructureKind) -> builtins.list[dict[str, Any]]:
         return self._repository.list(kind)
 
+    def get(self, kind: StructureKind, entity_id: str) -> dict[str, Any] | None:
+        records = self.list(kind)
+        index = self._find_index(kind, records, entity_id)
+        return records[index] if index is not None else None
+
     def add(self, kind: StructureKind, values: Mapping[str, object]) -> dict[str, Any]:
         record = self._prepare(kind, values)
         records = self.list(kind)
@@ -146,6 +151,114 @@ class AcademicStructureService:
         if deleted_count:
             self._repository.save("enrollment", remaining)
         return deleted_count
+
+    def transfer_or_promote(
+        self,
+        student_id: str,
+        class_id: str,
+        academic_year_id: str,
+        effective_date: str,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Close the current enrollment and create its successor in one JSON save."""
+        start = _date({"date": effective_date}, "date", "Transition date")
+        previous_date = (date.fromisoformat(start) - timedelta(days=1)).isoformat()
+        current = self.enrollment_for_student_on(student_id, previous_date)
+        closure_date = previous_date
+        if current is None:
+            prior_year_enrollments: list[tuple[str, dict[str, Any]]] = []
+            for enrollment in self.list("enrollment"):
+                if (
+                    not self._same(enrollment.get("student_id"), student_id)
+                    or enrollment.get("status") != "active"
+                ):
+                    continue
+                year = self._get("academic_year", str(enrollment.get("academic_year_id", "")))
+                if year is None:
+                    continue
+                _, year_end = _stored_period(year, "Academic year")
+                enrollment_start, _ = _stored_period(enrollment, "Enrollment", allow_open_end=True)
+                if (
+                    date.fromisoformat(enrollment_start)
+                    <= date.fromisoformat(year_end)
+                    < date.fromisoformat(start)
+                ):
+                    prior_year_enrollments.append((year_end, enrollment))
+            if prior_year_enrollments:
+                closure_date, current = max(prior_year_enrollments, key=lambda item: item[0])
+        if current is None or current.get("status") != "active":
+            raise ValidationError("No active enrollment exists immediately before this date.")
+        records = self.list("enrollment")
+        current_index = self._find_index("enrollment", records, str(current["enrollment_id"]))
+        if current_index is None:
+            raise StorageError("The current enrollment disappeared during the transition.")
+        closed = dict(current)
+        closed["end_date"] = closure_date
+        closed["status"] = (
+            "transferred"
+            if self._same(current.get("academic_year_id"), academic_year_id)
+            else "completed"
+        )
+        successor = self._prepare_enrollment(
+            {
+                "student_id": student_id,
+                "class_id": class_id,
+                "academic_year_id": academic_year_id,
+                "start_date": start,
+                "status": "active",
+            },
+            generate_id(PREFIXES["enrollment"]),
+        )
+        updated = [*records[:current_index], closed, *records[current_index + 1 :]]
+        self._ensure_unique("enrollment", successor, updated)
+        updated.append(successor)
+        self._repository.save("enrollment", updated)
+        return closed, successor
+
+    def withdraw(self, student_id: str, effective_date: str) -> dict[str, Any]:
+        """End an active enrollment on the student's final enrolled date."""
+        end = _date({"date": effective_date}, "date", "Withdrawal date")
+        current = self.enrollment_for_student_on(student_id, end)
+        if current is None or current.get("status") != "active":
+            raise ValidationError("No active enrollment exists on this withdrawal date.")
+        start, _ = _stored_period(current, "Enrollment", allow_open_end=True)
+        _require_order(start, end, "Enrollment")
+        records = self.list("enrollment")
+        index = self._find_index("enrollment", records, str(current["enrollment_id"]))
+        if index is None:
+            raise StorageError("The current enrollment disappeared during the withdrawal.")
+        withdrawn = dict(current)
+        withdrawn["end_date"] = end
+        withdrawn["status"] = "withdrawn"
+        records[index] = withdrawn
+        self._repository.save("enrollment", records)
+        return withdrawn
+
+    def enrollment_for_student_on(
+        self, student_id: str, enrollment_date: str
+    ) -> dict[str, Any] | None:
+        target = student_id.strip().casefold()
+        date_value = _date({"date": enrollment_date}, "date", "Attendance date")
+        day = date.fromisoformat(date_value)
+        matches: list[dict[str, Any]] = []
+        for enrollment in self.list("enrollment"):
+            if not self._same(enrollment.get("student_id"), target):
+                continue
+            start, end = _stored_period(enrollment, "Enrollment", allow_open_end=True)
+            academic_year = self._get("academic_year", str(enrollment["academic_year_id"]))
+            if academic_year is None:
+                raise StorageError("An enrollment references a missing academic year.")
+            _, year_end = _stored_period(academic_year, "Academic year")
+            effective_end = min(
+                date.fromisoformat(end) if end else date.fromisoformat(year_end),
+                date.fromisoformat(year_end),
+            )
+            if date.fromisoformat(start) <= day <= effective_end:
+                matches.append(enrollment)
+        if len(matches) > 1:
+            raise ValidationError(
+                "More than one enrollment covers this date; correct enrollment history before recording attendance."
+            )
+        return matches[0] if matches else None
 
     def _prepare(
         self,

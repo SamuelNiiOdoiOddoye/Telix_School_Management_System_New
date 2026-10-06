@@ -4,6 +4,50 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
 
 **How to add an entry:** add a new `## [version] - date` section at the top, group changes under *Added*, *Changed*, *Fixed*, *Removed* or *Security*, and say *why* when it is not obvious. If a change moves or renames files, add rows to a mapping table so nothing is lost.
 
+## [Unreleased]
+
+### Added
+
+- Basic attendance CRUD and history filters for date, student, and class, with
+  status counts and an attendance percentage that excludes Excused records.
+- Student payment and expense ledgers with Decimal-safe summaries for receipts,
+  outstanding balances, retained overpayment credit, salaries, expenses, and
+  profit/loss.
+- Attendance and finance report tables, expanded dashboard financial metrics,
+  and CSV export for displayed reports.
+- Attendance linkage to the effective student enrollment and academic year;
+  duplicate student/date entries and dates outside the valid enrollment period
+  are rejected.
+- New academic records can reference managed subjects, terms, and academic
+  years by stable catalog ID; existing text-only records remain supported.
+- Added configurable term/year grading profiles, weighted or unweighted
+  assessment calculations, component-score CRUD, grade bands, and an Assessments tab.
+- Added assessment component scores to Reports and CSV export.
+- Added transfer/promotion and withdrawal operations that preserve enrollment
+  history and update the enrollment collection in one save.
+- Student removal now cleans linked enrollment, academic, assessment, and
+  attendance records. The updates remain sequential across JSON files.
+- Student deletion is prevented while linked payment history exists; remove
+  or retain the payment records before deleting the student.
+- Attendance service tests and a manual desktop acceptance workflow.
+
+### Changed
+
+- Registered an Attendance tab with record, update, delete, filter, and summary
+  interactions.
+- Registered an Assessments tab with grading-profile setup, score entry,
+  updates, deletes, and grade calculation.
+- Added transfer/promotion and withdrawal controls to the enrollment editor.
+- Expanded the Finance tab for payment/expense maintenance and the Reports tab
+  for attendance, finance, and CSV export.
+- Updated the README and manual checklist to describe attendance as partial V1.3
+  functionality, not as completion of the student lifecycle phase.
+
+### Security
+
+- Added an ignore rule for the local attendance JSON file.
+- Added ignore rules for local payment and expense JSON files.
+
 ---
 
 ## [1.2.0] - 2026-10-06: Academic setup foundation

@@ -69,7 +69,7 @@ EDITOR_DEFINITIONS: dict[
             ("student_id", "Student ID"),
             ("academic_year_id", "Academic year"),
             ("class_id", "Class"),
-            ("start_date", "Start date (YYYY-MM-DD)"),
+            ("start_date", "Start / transition date (YYYY-MM-DD)"),
             ("end_date", "End date (optional)"),
             ("status", "Status"),
         ),
@@ -155,6 +155,21 @@ class AcademicSetupTab(BaseTab):
             ),
             row=button_row,
         )
+        if kind == "enrollment":
+            transition_buttons = ttk.Frame(form)
+            transition_buttons.grid(
+                row=button_row + 1, column=0, columnspan=6, sticky="w", pady=(8, 0)
+            )
+            ttk.Button(
+                transition_buttons,
+                text="Transfer / Promote",
+                command=self.transfer_or_promote,
+            ).grid(row=0, column=0, padx=(0, 8))
+            ttk.Button(
+                transition_buttons,
+                text="Withdraw on selected date",
+                command=self.withdraw,
+            ).grid(row=0, column=1)
         tree_frame = ttk.Frame(page)
         tree_frame.pack(fill="both", expand=True, pady=(12, 0))
         tree = create_tree(tree_frame, columns, widths)
@@ -216,6 +231,31 @@ class AcademicSetupTab(BaseTab):
         editor.selected_id = None
         for variable in editor.variables.values():
             variable.set("")
+
+    def transfer_or_promote(self) -> None:
+        editor = self.editors["enrollment"]
+        values = self._form_values(editor)
+        services = self.context.services.academic_structure
+        self.context.runner.run(
+            lambda: services.transfer_or_promote(
+                values["student_id"],
+                values["class_id"],
+                values["academic_year_id"],
+                values["start_date"],
+            ),
+            "Student enrollment transferred or promoted successfully.",
+            self._after_change,
+        )
+
+    def withdraw(self) -> None:
+        editor = self.editors["enrollment"]
+        values = self._form_values(editor)
+        services = self.context.services.academic_structure
+        self.context.runner.run(
+            lambda: services.withdraw(values["student_id"], values["start_date"]),
+            "Student withdrawal recorded successfully.",
+            self._after_change,
+        )
 
     def _form_values(self, editor: Editor) -> dict[str, str]:
         values = {name: variable.get().strip() for name, variable in editor.variables.items()}

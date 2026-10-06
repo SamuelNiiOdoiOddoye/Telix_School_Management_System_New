@@ -6,6 +6,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from telix.attendance.repository import AttendanceRepository
+from telix.attendance.service import AttendanceService
+from telix.academics.assessment_repository import AssessmentRepository, AssessmentKind
+from telix.academics.assessment_service import AssessmentService
+from telix.finance.ledger_service import FinanceLedgerService
+from telix.finance.repository import FinanceRepository, LedgerKind
 from telix.academics.repository import AcademicRepository
 from telix.academics.service import AcademicRecordService
 from telix.academics.structure_repository import AcademicStructureRepository, StructureKind
@@ -77,14 +83,43 @@ class ServiceTestCase(unittest.TestCase):
         self.student_store = JsonStore(self.directory / "student_records.json")
         self.teacher_store = JsonStore(self.directory / "teacher_records.json")
         self.academic_store = JsonStore(self.directory / "academic_records.json")
+        self.attendance_store = JsonStore(self.directory / "attendance_records.json")
+        ledger_stores: dict[LedgerKind, JsonStore] = {
+            "payment": JsonStore(self.directory / "payments.json"),
+            "expense": JsonStore(self.directory / "expenses.json"),
+        }
         structure_stores: dict[StructureKind, JsonStore] = {
             kind: JsonStore(self.directory / f"{kind}.json")
             for kind in ("class", "subject", "academic_year", "term", "enrollment")
         }
+        assessment_stores: dict[AssessmentKind, JsonStore] = {
+            "assessment": JsonStore(self.directory / "assessment_records.json"),
+            "profile": JsonStore(self.directory / "grading_profiles.json"),
+        }
         self.students = StudentService(StudentRepository(self.student_store))
         self.teachers = TeacherService(TeacherRepository(self.teacher_store))
-        self.academics = AcademicRecordService(AcademicRepository(self.academic_store))
         self.academic_structure = AcademicStructureService(
             AcademicStructureRepository(structure_stores), self.students.exists
         )
-        self.removal = StudentRemovalService(self.students, self.academics, self.academic_structure)
+        self.academics = AcademicRecordService(
+            AcademicRepository(self.academic_store), self.academic_structure
+        )
+        self.assessments = AssessmentService(
+            AssessmentRepository(assessment_stores),
+            self.academic_structure,
+            self.students.exists,
+        )
+        self.attendance = AttendanceService(
+            AttendanceRepository(self.attendance_store),
+            self.academic_structure,
+            self.students.exists,
+        )
+        self.finance = FinanceLedgerService(FinanceRepository(ledger_stores), self.students.exists)
+        self.removal = StudentRemovalService(
+            self.students,
+            self.academics,
+            self.academic_structure,
+            self.attendance,
+            self.finance,
+            self.assessments,
+        )

@@ -121,7 +121,8 @@ class StudentsTab(BaseTab):
             return
         if not self.context.feedback.confirm(
             "Delete Student",
-            f"Delete {student['name']} ({student['student_id']}) and linked academic records?",
+            f"Delete {student['name']} ({student['student_id']}) and linked academic, "
+            "enrollment, and attendance records? Existing payment history prevents deletion.",
         ):
             return
         self.context.runner.run(

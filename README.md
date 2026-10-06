@@ -28,7 +28,7 @@ Telix is a desktop school-records application built with Python and Tkinter. It 
 
 - Displays the number of saved students and teachers.
 - Shows expected fee income and the calculated profit or loss.
-- Provides quick navigation to Students, Teachers, and Academic Records.
+- Provides quick navigation to the main student, teacher, and academic workflows.
 - Refreshes the application views after successful record changes.
 
 ### Student records
@@ -69,25 +69,69 @@ Telix is a desktop school-records application built with Python and Tkinter. It 
 - Validate term/enrollment dates against the selected academic year and prevent
   deleting classes or years that are still referenced.
 
-The existing Academic Records form still accepts subject, term, and academic
-year as text. Connecting marks and assessments to the managed catalogs is
-planned academic-management work, not yet implemented.
+New academic records select a managed subject, term, and academic year and
+persist their stable catalog IDs with display names. Existing legacy records
+without those IDs remain readable and can still be edited using their saved
+text values.
+
+### Assessments and grading
+
+- Configure weighted or unweighted grading per academic year, with an optional
+  term-specific override.
+- Define assessment components and weights (for example, Coursework 40% and
+  Exam 60%) and school grading bands.
+- Record and maintain per-student, per-subject component scores from 0 to 100.
+- Calculate a subject grade once all configured components have scores;
+  weighted mode applies configured weights, while unweighted mode averages
+  components equally.
+- View assessment component scores in Reports and export the visible rows to CSV.
+
+Profiles and component scores are stored separately from legacy academic
+records; the existing one-score-per-subject/term/year records remain supported.
+
+### Attendance
+
+- Record Present, Absent, Late, or Excused attendance for a student on a date.
+- Attendance is linked to the student's enrollment effective on that date;
+  dates outside the academic year or enrollment are rejected.
+- Prevents duplicate records for the same student and date.
+- View attendance history with date, student, and class filters; select records
+  to update or delete them.
+- Displays status counts and an attendance percentage. Present and Late count
+  as attended; Excused records are excluded from the percentage denominator.
+- Student deletion also removes linked attendance records.
+
+Attendance is the first V1.3 lifecycle workflow, not the complete lifecycle
+phase. Academic Setup provides transfer/promotion and withdrawal actions that
+preserve enrollment history. Re-enrollment can be recorded by adding a new
+non-overlapping enrollment. A student-status field and consolidated lifecycle
+timeline/report are not yet available.
 
 ### Reports
 
 - Shows student and parent or guardian contact details.
 - Shows teacher contact and emergency-contact details.
 - Shows academic records alongside the related student's name and class.
-- Filters student and linked academic report rows by class; teacher records remain visible across classes.
+- Shows attendance history with counts and attendance percentage.
+- Shows payment and expense entries with a financial summary.
+- Filters student, academic, and attendance report rows by class; teacher and
+  finance records remain visible across classes.
+- Exports visible report table data to CSV.
 
-### Finance summary
+### Finance
 
-- Totals the fees recorded on student records as **expected fee income**.
-- Totals the salaries recorded on teacher records as **teacher salary expense**.
-- Calculates **profit / loss** as expected fee income minus recorded teacher salaries.
-- Displays monetary values in Ghana cedis (GHS).
+- Records student payments, including partial payments, dates, amounts, and
+  optional descriptions.
+- Calculates expected fees from student records, received payments, remaining
+  balances, and overpayments retained as student credit.
+- Records, updates, and deletes categorized school expenses.
+- Includes teacher salaries and other expenses in the financial summary;
+  profit/loss is calculated from received income minus those expenses.
+- Uses `Decimal` values and displays totals in Ghana cedis (GHS).
 
-This is a summary of the values in the records, not an accounting ledger. It does not track payments received, outstanding balances, expenses other than teacher salaries, or financial periods.
+This is a basic cash summary, not an invoicing or accounting system. Fees are
+still one expected amount per student; there are no fee schedules, invoices,
+academic-period allocations, payment receipts, or audit trail.
 
 ### Validation and data handling
 
@@ -109,11 +153,14 @@ This is a summary of the values in the records, not an accounting ledger. It doe
 3. To edit a record, select its row in the table, change the form values, and choose **Update Selected**. The original ID is kept unchanged.
 4. Use the exact-ID search controls to find a student or teacher. The Students tab also supports filtering by class.
 5. In **Academic Setup**, create the classes, academic years, subjects, and terms your school uses. Add a student enrollment by selecting its student, class, and year and setting its effective start date.
-6. In **Academic Records**, search for and confirm a student, enter a subject, score, term, and academic year, then choose **Add Score**. Existing entries can be selected and updated or deleted.
-7. Open **Reports** to view linked student, teacher, and academic information. Choose a class filter to narrow the student and academic views.
-8. Open **Finance** to recalculate the expected fee income, teacher salary expense, and resulting profit or loss.
+6. In **Academic Records**, search for and confirm a student, select a managed subject, term, and academic year, enter a score, then choose **Add Score**. Existing entries can be selected and updated or deleted.
+7. In **Assessments**, configure grading components and bands for an academic year or term, enter component scores, and calculate the grade once all components are recorded.
+8. In **Academic Setup → Enrollments**, use **Transfer / Promote** to close the current enrollment and create its successor, or record a withdrawal effective on the selected date.
+9. In **Attendance**, choose an enrolled student, date, and status to record attendance. Filter history by date, student, or class; select a record to update or delete it.
+10. Open **Reports** to view linked student, teacher, academic, assessment, attendance, and finance information. Choose a class filter to narrow student-linked reports.
+11. In **Finance**, record payments and school expenses, then review expected income, received income, outstanding balances, student credit, expenses, and profit/loss.
 
-Successful changes trigger refreshes of the relevant tables and summary views. Delete actions ask for confirmation. Deleting a student also removes academic records linked to that student's ID.
+Successful changes trigger refreshes of the relevant tables and summary views. Delete actions ask for confirmation. Deleting a student also removes linked academic records, assessment component scores, enrollments, and attendance records; payment history blocks deletion. These JSON file updates are sequential and are not a cross-file transaction.
 
 ### Validation rules
 
@@ -191,12 +238,15 @@ The application reads and writes these files in the project root:
 |---|---|
 | `student_records.json` | Student and parent/guardian records |
 | `teacher_records.json` | Teacher records |
-| `academic_records.json` | Student academic records |
+| `academic_records.json` | Student academic records, with managed catalog IDs on newly linked records |
 | `classes.json` | Managed class catalog |
 | `subjects.json` | Managed subject catalog |
 | `academic_years.json` | Academic-year definitions |
 | `terms.json` | Terms linked to academic years |
 | `enrollments.json` | Effective-dated student class enrollments |
+| `attendance_records.json` | Student attendance linked to the effective enrollment |
+| `payments.json` | Student payments and payment descriptions |
+| `expenses.json` | Categorized school expense entries |
 
 If a file does not exist yet, it is treated as an empty record list. Before overwriting an existing file, the application copies it to the corresponding `*.backup.json` file. Saves are written to a temporary file in the same directory and then replace the main file. A backup is a recovery aid, not a substitute for regular off-device backups.
 
@@ -213,9 +263,10 @@ The code is separated by responsibility:
 1. **`telix/core/`** — shared validation, text normalization, identifiers, search, amount conversion, formatting, and application errors.
 2. **`telix/storage/`** — JSON file persistence and a generic repository that normalizes loaded records.
 3. **`telix/students/`, `telix/teachers/`, `telix/academics/`** — field definitions, legacy normalization, validation, repositories, and record-specific business rules. Academic setup and enrollment rules are implemented in `academics/structure_service.py`.
-4. **`telix/finance/`** — the expected-income and salary summary calculation.
-5. **`telix/services/`** — service construction and workflows spanning record types, including student deletion with linked academic records.
-6. **`telix/ui/`** — the Tkinter app shell, shared tab context, reusable forms and tables, feedback, and one tab module per screen, including **Academic Setup**.
+4. **`telix/attendance/`** — attendance validation, JSON repository, and service summaries linked to effective-dated enrollment.
+5. **`telix/finance/`** — expected fee, payment, balance, credit, salary, expense, and profit/loss calculations with ledger repositories and services.
+6. **`telix/services/`** — service construction and workflows spanning record types, including student deletion with linked academic and attendance records.
+7. **`telix/ui/`** — the Tkinter app shell, shared tab context, reusable forms and tables, feedback, and one tab module per screen, including **Academic Setup** and **Attendance**.
 
 The UI calls services; services apply business rules through repositories; repositories use the JSON storage layer. This keeps validation and record rules out of screen event handlers. `telix/ui/app.py` composes the services and registers the tabs. `main.py` and `telix/__main__.py` provide the two launch commands.
 
@@ -325,37 +376,45 @@ Remaining:
 
 #### V1.2 — Academic management
 
-**Status: Planned.** Add managed classes, subjects, academic years and terms;
-effective-dated student enrollment; teacher and subject assignment;
-assessments; grades and grade calculations; academic summaries; student
-academic history; filtering; and basic academic reports.
+**Status: In progress.** Managed classes, subjects, academic years, terms, and
+effective-dated enrollment are present in Academic Setup. New academic records
+can be linked to managed subjects, terms, and academic years, while legacy
+records retain their text-based compatibility. Configurable assessment
+components, year/term grading profiles, weighted or unweighted grade
+calculations, and assessment reporting are implemented. Teacher/subject
+assignments, academic summaries, and broader academic history/reporting remain
+outstanding.
 
 This phase remains local desktop V1 work. It does not add V2 authentication,
 multi-tenancy, APIs, or mobile apps.
 
 #### V1.3 — Attendance and student lifecycle
 
-**Status: Planned.** Add attendance records, a daily attendance workflow and
-summaries, enrollment/student status, transfer and withdrawal, promotion, and
-completion/graduation status where applicable. Effective-dated enrollment is
-the intended basis for class history. Related academic and attendance data
-must not be orphaned by student lifecycle operations.
+**Status: In progress.** Attendance is implemented for Present, Absent, Late,
+and Excused statuses, linked to the effective enrollment and academic year.
+Explicit transfer/promotion and withdrawal actions preserve effective-dated
+enrollment history, and re-enrollment can be added without overlap. Duplicate
+attendance prevention, filters, summaries, and student-removal cleanup are
+covered by tests. A student-status field, consolidated lifecycle views, and
+full phase acceptance remain outstanding.
 
 #### V1.4 — Finance
 
-**Status: Planned.** Extend the current estimate into a tested local finance
-foundation with fee categories, charges/invoices, payments and payment
-history, outstanding balances, appropriate discounts, expenses, financial
-summaries, and basic exportable reports. All monetary calculations must remain
-`Decimal`-safe. The current fee-minus-salary estimate is not a ledger and does
-not satisfy this phase.
+**Status: In progress.** Student payment and expense records support
+create/update/delete and JSON persistence. The finance summary reports expected
+fees, receipts, outstanding balances, overpayment credit, salary expense,
+other expenses, total expenses, and collected-cash profit/loss using `Decimal`.
+Student deletion is blocked while payment history remains, avoiding an orphaned
+financial record. Fee schedules, invoices, payment allocation by academic
+period, audit history, and phase-wide acceptance remain outstanding.
 
 #### V1.5 — Reports and administration
 
-**Status: Planned.** Add useful student, teacher, academic, attendance,
-financial, and outstanding-fee reports; class summaries; dashboard
-statistics; search/filtering; and print/export where practical. Report
-generation belongs in domain/service logic, not in UI-only state manipulation.
+**Status: In progress.** Reports include linked student/guardian, teacher,
+academic, attendance, payment, and expense data; class filtering for student,
+academic, and attendance views; CSV export of displayed tables; and dashboard
+financial statistics. Academic performance summaries, filterable financial
+periods, and complete phase-wide GUI acceptance remain outstanding.
 
 #### V1.6 — UX/UI completion
 
@@ -443,12 +502,13 @@ be represented as current V1 features.
   and student records separately and may be interrupted partway through.
 - Each list operation reads its full JSON file. Backups are made during saves,
   but there is no backup/restore management UI.
-- Finance currently totals recorded student fees and teacher salaries. It does
-  not track charges, received payments, balances, other expenses, or financial
-  periods; its profit/loss is only an estimate.
-- Attendance, timetables, teacher/subject assignment, assessment and grading
-  workflows, and the other roadmap items are not currently implemented unless
-  stated above.
+- Finance tracks student payments and categorized expenses, but fees are still
+  a single expected amount per student. There are no invoices, payment
+  allocations by academic period, refunds, or financial audit history.
+- Attendance and enrollment transitions have basic workflows but do not yet
+  provide a consolidated student lifecycle timeline. Timetables and
+  teacher/subject assignments remain planned; other features are not current
+  unless stated above.
 - The app provides no encryption at rest or audit history. Keep local record
   files private, excluded from Git, and protected by operating-system account
   security.

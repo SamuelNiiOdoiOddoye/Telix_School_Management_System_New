@@ -10,7 +10,9 @@ from telix.services.container import Services, build_services
 from telix.ui.feedback import Feedback
 from telix.ui.operations import OperationRunner
 from telix.ui.tabs.academics import AcademicsTab
+from telix.ui.tabs.assessments import AssessmentsTab
 from telix.ui.tabs.academic_setup import AcademicSetupTab
+from telix.ui.tabs.attendance import AttendanceTab
 from telix.ui.tabs.base import BaseTab, TabContext
 from telix.ui.tabs.dashboard import DashboardTab
 from telix.ui.tabs.finance import FinanceTab
@@ -26,7 +28,9 @@ TAB_CLASSES: tuple[type[BaseTab], ...] = (
     StudentsTab,
     TeachersTab,
     AcademicsTab,
+    AssessmentsTab,
     AcademicSetupTab,
+    AttendanceTab,
     ReportsTab,
     FinanceTab,
 )
@@ -62,7 +66,7 @@ class SchoolManagementSystem:
         )
         ttk.Label(
             container,
-            text="V1 · Student, teacher, academic, finance, and reporting workspace",
+            text="V1 · Student, teacher, academic, attendance, finance, and reporting workspace",
             style="Subtitle.TLabel",
         ).pack(anchor="w", pady=(0, 12))
         self.notebook = ttk.Notebook(container)

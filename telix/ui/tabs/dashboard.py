@@ -6,20 +6,23 @@ import tkinter as tk
 from tkinter import ttk
 
 from telix.core.formatting import format_currency
-from telix.finance.summary import calculate_financial_summary
 from telix.ui.tabs.base import BaseTab, TabContext
 from telix.ui.theme import HEADING_FONT
 
 CARDS = (
     ("Students", "students"),
     ("Teachers", "teachers"),
-    ("Expected Fee Income", "income"),
+    ("Expected Fee Income", "expected"),
+    ("Received Income", "received"),
+    ("Outstanding Balance", "outstanding"),
     ("Profit / Loss", "result"),
 )
 QUICK_ACTIONS = (
     ("Manage Students", "students"),
     ("Manage Teachers", "teachers"),
     ("Record Academic Score", "academics"),
+    ("Record Attendance", "attendance"),
+    ("Open Finance", "finance"),
 )
 
 
@@ -33,7 +36,9 @@ class DashboardTab(BaseTab):
         self.metrics = {
             "students": tk.StringVar(value="0"),
             "teachers": tk.StringVar(value="0"),
-            "income": tk.StringVar(value=format_currency(0)),
+            "expected": tk.StringVar(value=format_currency(0)),
+            "received": tk.StringVar(value=format_currency(0)),
+            "outstanding": tk.StringVar(value=format_currency(0)),
             "result": tk.StringVar(value=format_currency(0)),
         }
         self._build_heading()
@@ -44,7 +49,7 @@ class DashboardTab(BaseTab):
         ttk.Label(self.frame, text="School overview", font=HEADING_FONT).pack(anchor="w")
         ttk.Label(
             self.frame,
-            text="Financial results use recorded student fees less recorded teacher salaries.",
+            text="Financial results show collected payments less salaries and recorded expenses.",
             style="Subtitle.TLabel",
         ).pack(anchor="w", pady=(0, 16))
 
@@ -52,12 +57,11 @@ class DashboardTab(BaseTab):
         cards = ttk.Frame(self.frame)
         cards.pack(fill="x")
         for index, (label, metric_key) in enumerate(CARDS):
+            row, column = divmod(index, 3)
             card = ttk.LabelFrame(cards, text=label, padding=18)
-            card.grid(
-                row=0, column=index, padx=(0, 12) if index < len(CARDS) - 1 else 0, sticky="nsew"
-            )
+            card.grid(row=row, column=column, padx=(0, 12), pady=(0, 8), sticky="nsew")
             ttk.Label(card, textvariable=self.metrics[metric_key], style="Metric.TLabel").pack()
-            cards.columnconfigure(index, weight=1)
+            cards.columnconfigure(column, weight=1)
 
     def _build_quick_actions(self) -> None:
         actions = ttk.LabelFrame(self.frame, text="Quick actions", padding=16)
@@ -75,8 +79,10 @@ class DashboardTab(BaseTab):
     def refresh(self) -> None:
         students = self.context.services.students.list()
         teachers = self.context.services.teachers.list()
-        summary = calculate_financial_summary(students, teachers)
+        summary = self.context.services.finance.summary(students, teachers)
         self.metrics["students"].set(str(len(students)))
         self.metrics["teachers"].set(str(len(teachers)))
-        self.metrics["income"].set(format_currency(summary["fee_income"]))
+        self.metrics["expected"].set(format_currency(summary["expected_fee_income"]))
+        self.metrics["received"].set(format_currency(summary["received_income"]))
+        self.metrics["outstanding"].set(format_currency(summary["outstanding_balances"]))
         self.metrics["result"].set(format_currency(summary["profit_or_loss"]))

@@ -43,3 +43,70 @@ class AcademicServiceTests(ServiceTestCase):
     def test_score_range(self):
         with self.assertRaisesRegex(ValidationError, "0 to 100"):
             self.add_score(score="101")
+
+    def test_new_records_can_link_managed_subject_term_and_year(self):
+        subject = self.academic_structure.add("subject", {"name": "Science"})
+        year = self.academic_structure.add(
+            "academic_year",
+            {"name": "2026/2027", "start_date": "2026-09-01", "end_date": "2027-06-30"},
+        )
+        term = self.academic_structure.add(
+            "term",
+            {
+                "academic_year_id": year["academic_year_id"],
+                "name": "Term One",
+                "start_date": "2026-09-01",
+                "end_date": "2026-12-20",
+            },
+        )
+
+        record = self.academics.add(
+            {
+                **valid_score(subject="non-canonical", term="old label", academic_year="old year"),
+                "subject_id": subject["subject_id"],
+                "term_id": term["term_id"],
+                "academic_year_id": year["academic_year_id"],
+            },
+            self.students.exists,
+        )
+
+        self.assertEqual(record["subject"], "Science")
+        self.assertEqual(record["term"], "Term One")
+        self.assertEqual(record["academic_year"], "2026/2027")
+        self.assertEqual(record["subject_id"], subject["subject_id"])
+        self.assertEqual(record["term_id"], term["term_id"])
+        self.assertEqual(record["academic_year_id"], year["academic_year_id"])
+        self.assertEqual(self.academics.get(record["academic_id"]), record)
+
+    def test_managed_references_must_be_complete_and_term_must_match_year(self):
+        subject = self.academic_structure.add("subject", {"name": "Science"})
+        first_year = self.academic_structure.add(
+            "academic_year",
+            {"name": "2026/2027", "start_date": "2026-09-01", "end_date": "2027-06-30"},
+        )
+        other_year = self.academic_structure.add(
+            "academic_year",
+            {"name": "2027/2028", "start_date": "2027-09-01", "end_date": "2028-06-30"},
+        )
+        term = self.academic_structure.add(
+            "term",
+            {
+                "academic_year_id": first_year["academic_year_id"],
+                "name": "Term One",
+                "start_date": "2026-09-01",
+                "end_date": "2026-12-20",
+            },
+        )
+        common = {
+            **valid_score(),
+            "subject_id": subject["subject_id"],
+            "term_id": term["term_id"],
+            "academic_year_id": other_year["academic_year_id"],
+        }
+        with self.assertRaisesRegex(ValidationError, "does not belong"):
+            self.academics.add(common, self.students.exists)
+        with self.assertRaisesRegex(ValidationError, "Choose a managed"):
+            self.academics.add(
+                {**common, "academic_year_id": ""},
+                self.students.exists,
+            )

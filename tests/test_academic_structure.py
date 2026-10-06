@@ -189,6 +189,75 @@ class AcademicStructureTests(unittest.TestCase):
         self.assertEqual(first["class_id"], self.classroom["class_id"])
         self.assertEqual(second["class_id"], next_class["class_id"])
 
+    def test_transfer_closes_current_enrollment_and_creates_successor(self) -> None:
+        current = self.service.add(
+            "enrollment",
+            {
+                "student_id": "STU-001",
+                "academic_year_id": self.year["academic_year_id"],
+                "class_id": self.classroom["class_id"],
+                "start_date": "2026-09-01",
+            },
+        )
+        next_class = self.service.add("class", {"name": "Grade 2"})
+
+        closed, successor = self.service.transfer_or_promote(
+            "STU-001",
+            next_class["class_id"],
+            self.year["academic_year_id"],
+            "2027-01-15",
+        )
+
+        self.assertEqual(closed["enrollment_id"], current["enrollment_id"])
+        self.assertEqual(closed["end_date"], "2027-01-14")
+        self.assertEqual(closed["status"], "transferred")
+        self.assertEqual(successor["class_id"], next_class["class_id"])
+        self.assertEqual(
+            self.service.enrollment_for_student_on("STU-001", "2027-01-15")["enrollment_id"],
+            successor["enrollment_id"],
+        )
+
+    def test_promotion_into_next_year_completes_prior_enrollment(self) -> None:
+        current = self.service.add(
+            "enrollment",
+            {
+                "student_id": "STU-001",
+                "academic_year_id": self.year["academic_year_id"],
+                "class_id": self.classroom["class_id"],
+                "start_date": "2026-09-01",
+            },
+        )
+        next_year = self.service.add(
+            "academic_year",
+            {"name": "2027/2028", "start_date": "2027-09-01", "end_date": "2028-06-30"},
+        )
+        next_class = self.service.add("class", {"name": "Grade 2"})
+
+        closed, successor = self.service.transfer_or_promote(
+            "STU-001", next_class["class_id"], next_year["academic_year_id"], "2027-09-01"
+        )
+
+        self.assertEqual(closed["enrollment_id"], current["enrollment_id"])
+        self.assertEqual(closed["end_date"], "2027-06-30")
+        self.assertEqual(closed["status"], "completed")
+        self.assertEqual(successor["start_date"], "2027-09-01")
+
+    def test_withdrawal_ends_active_enrollment_on_given_day(self) -> None:
+        self.service.add(
+            "enrollment",
+            {
+                "student_id": "STU-001",
+                "academic_year_id": self.year["academic_year_id"],
+                "class_id": self.classroom["class_id"],
+                "start_date": "2026-09-01",
+            },
+        )
+
+        withdrawn = self.service.withdraw("STU-001", "2027-02-01")
+
+        self.assertEqual(withdrawn["end_date"], "2027-02-01")
+        self.assertEqual(withdrawn["status"], "withdrawn")
+
     def test_overlapping_enrollments_are_rejected(self) -> None:
         values = {
             "student_id": "STU-001",

@@ -15,4 +15,7 @@ def normalise_academic_record(record: dict[str, Any]) -> dict[str, Any]:
         "score": record.get("score", record.get("Score", 0)),
         "term": clean_text(record.get("term") or record.get("Term")),
         "academic_year": clean_text(record.get("academic_year") or record.get("Academic Year")),
+        "subject_id": clean_text(record.get("subject_id")),
+        "term_id": clean_text(record.get("term_id")),
+        "academic_year_id": clean_text(record.get("academic_year_id")),
     }

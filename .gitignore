@@ -7,6 +7,11 @@
 /academic_years.json
 /terms.json
 /enrollments.json
+/attendance_records.json
+/payments.json
+/expenses.json
+/assessment_records.json
+/grading_profiles.json
 /*.backup.json
 /telix.log
 **/*.backup.json
