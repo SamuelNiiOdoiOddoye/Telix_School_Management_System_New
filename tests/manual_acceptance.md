@@ -6,6 +6,25 @@ creates backups on writes. Do not test against a live data directory.
 
 ## Current V1 workflows
 
+- [ ] With `TELIX_ENABLE_DEMO_REGISTRATION` unset or set to `0`, launch Telix
+      and confirm the login screen does not show **Create Local Demo Account**.
+- [ ] In a disposable local checkout, set
+      `$env:TELIX_ENABLE_DEMO_REGISTRATION = "1"` and launch Telix. Confirm the
+      login screen shows **Create Local Demo Account** with a development-only
+      note. Open the form and confirm it asks for Full name, Email, Password,
+      and Confirm password only, with no role selector.
+- [ ] Create a demo account with a valid name/email and a password meeting the
+      documented policy. Confirm it returns to login, fills the account email,
+      and displays a success message; log in and verify its role is Teacher.
+- [ ] Try blank/one-character names, malformed email, duplicate email,
+      mismatched passwords, and a too-short password. Confirm each is rejected
+      without creating another account and that password fields are cleared.
+- [ ] Call the registration service with the feature disabled and confirm it
+      rejects the request. Confirm its API exposes no role argument and the
+      persisted self-registration record is always `TEACHER`.
+- [ ] As Super Admin and Admin, select users in User Management and confirm the
+      read-only access summary updates from the selected role. Confirm it
+      cannot be edited and matches the capabilities available for each role.
 - [ ] In a disposable checkout with no `users.json`, run
       `python -m telix.bootstrap_demo_accounts --portfolio-only`. Confirm it
       creates only `demo-teacher@telix.example.invalid`, does not prompt for a
@@ -57,6 +76,9 @@ creates backups on writes. Do not test against a live data directory.
       management tabs. Try an unknown email, wrong password, and the correct
       email with different letter casing. Failures should show the same generic
       error; only valid credentials should open the workspace.
+- [ ] Log in as Super Admin, Admin, Teacher, Finance Officer, and Student.
+      Verify each account has its expected workspace and cannot access
+      unauthorized workflows; confirm an inactive user is rejected.
 - [ ] Launch with `python .\main.py` and confirm the window opens with
       Dashboard, Students, Teachers, Academic Records, Assessments, Academic
       Setup, Attendance, Reports, Finance, and User Management tabs.

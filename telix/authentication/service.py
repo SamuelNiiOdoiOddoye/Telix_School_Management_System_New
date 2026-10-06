@@ -13,6 +13,7 @@ from telix.authentication.repository import UserRepository
 from telix.authentication.roles import (
     SUPER_ADMIN,
     STUDENT,
+    TEACHER,
     USERS_MANAGE,
     Authorization,
     V1_ROLES,
@@ -23,7 +24,6 @@ from telix.core.validators import require_fields, validate_email, validate_phone
 
 _PASSWORD_MIN_LENGTH = 12
 _PASSWORD_MAX_LENGTH = 1024
-_ACCOUNT_LABELS = {"name": "Name", "email": "Email", "phone": "Phone"}
 
 
 @dataclass(frozen=True)
@@ -91,10 +91,16 @@ class AuthenticationService:
         *,
         student_id: str = "",
         allow_additional_super_admin: bool = False,
+        allow_empty_phone: bool = False,
     ) -> AuthenticatedUser:
+        account_values = {"name": name, "email": email}
+        account_labels = {"name": "Name", "email": "Email"}
+        if not allow_empty_phone or phone.strip():
+            account_values["phone"] = phone
+            account_labels["phone"] = "Phone"
         values = require_fields(
-            {"name": name, "email": email, "phone": phone},
-            _ACCOUNT_LABELS,
+            account_values,
+            account_labels,
         )
         if role not in V1_ROLES:
             raise ValidationError("Select a supported V1 role.")
@@ -107,7 +113,9 @@ class AuthenticationService:
         ):
             raise ValidationError("A Super Admin account already exists.")
         normalized_email = validate_email(values["email"]).casefold()
-        normalized_phone = validate_phone(values["phone"], "Phone number")
+        normalized_phone = (
+            validate_phone(values["phone"], "Phone number") if values.get("phone") else ""
+        )
         self._validate_password(password)
         if self.repository.find_by_email(normalized_email):
             raise ValidationError("An account with this email already exists.")
@@ -149,6 +157,41 @@ class AuthenticationService:
             role,
             student_id=student_id,
             allow_additional_super_admin=True,
+        )
+
+    def demo_registration_enabled(self) -> bool:
+        return os.environ.get("TELIX_ENABLE_DEMO_REGISTRATION", "").strip() == "1"
+
+    def register_demo_account(
+        self,
+        full_name: str,
+        email: str,
+        password: str,
+        password_confirmation: str,
+    ) -> AuthenticatedUser:
+        if not self.demo_registration_enabled():
+            raise ValidationError("Local demo account registration is disabled.")
+        cleaned = require_fields(
+            {"name": full_name, "email": email},
+            {"name": "Full name", "email": "Email"},
+        )
+        name = cleaned["name"]
+        if (
+            len(name) > 100
+            or len(name) < 2
+            or not any(character.isalpha() for character in name)
+            or any(ord(character) < 32 for character in name)
+        ):
+            raise ValidationError("Full name must be 2 to 100 characters and include a letter.")
+        if password != password_confirmation:
+            raise ValidationError("The passwords do not match.")
+        return self._create_account_record(
+            name,
+            cleaned["email"],
+            "",
+            password,
+            TEACHER,
+            allow_empty_phone=True,
         )
 
     def authenticate(self, email: str, password: str) -> AuthenticatedUser | None:

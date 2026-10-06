@@ -1,7 +1,11 @@
 """Headless-safe desktop startup and tab-registration smoke test."""
 
 import tkinter as tk
+from tkinter import ttk
 import secrets
+import os
+from collections.abc import Iterator
+from unittest.mock import patch
 
 from telix.authentication.service import AuthenticatedUser, AuthenticationService
 from telix.authentication.roles import ADMIN, STUDENT, SUPER_ADMIN, TEACHER, Authorization
@@ -392,6 +396,66 @@ class DesktopStartupSmokeTests(ServiceTestCase):
             self.assertEqual(screen.password.get(), "")
         finally:
             root.destroy()
+
+    def test_login_screen_opens_opt_in_demo_registration(self) -> None:
+        try:
+            root = tk.Tk()
+        except tk.TclError as error:
+            self.skipTest(f"Tk desktop display is unavailable: {error}")
+        try:
+            root.withdraw()
+            auth = AuthenticationService(UserRepository(JsonStore(self.directory / "users.json")))
+            with patch.dict(os.environ, {"TELIX_ENABLE_DEMO_REGISTRATION": "1"}):
+                received: list[AuthenticatedUser] = []
+                screen = LoginScreen(root, auth, received.append)
+                registration_button = screen.demo_registration_button
+                self.assertIsNotNone(registration_button)
+                assert registration_button is not None
+                registration_button.invoke()
+                root.update()
+                registration_window = screen.registration_window
+                self.assertIsNotNone(registration_window)
+                assert registration_window is not None
+                self.assertTrue(registration_window.winfo_exists())
+                widgets = list(self._descendants(registration_window))
+                entries = [widget for widget in widgets if isinstance(widget, ttk.Entry)]
+                self.assertEqual(len(entries), 4)
+                for entry, value in zip(
+                    entries,
+                    (
+                        "Local Demo Teacher",
+                        "local-teacher@example.invalid",
+                        "local-demo-password",
+                        "local-demo-password",
+                    ),
+                ):
+                    entry.insert(0, value)
+                create_button = next(
+                    widget
+                    for widget in widgets
+                    if isinstance(widget, ttk.Button) and widget.cget("text") == "Create Account"
+                )
+                create_button.invoke()
+                root.update()
+                self.assertIsNone(screen.registration_window)
+                self.assertEqual(screen.email.get(), "local-teacher@example.invalid")
+                self.assertIn("account created", screen.message.get().casefold())
+                self.assertEqual(
+                    auth.authenticate("local-teacher@example.invalid", "local-demo-password").role,
+                    TEACHER,
+                )
+                screen.password.set("local-demo-password")
+                screen._submit()
+                self.assertEqual(len(received), 1)
+                self.assertEqual(received[0].role, TEACHER)
+        finally:
+            root.destroy()
+
+    @staticmethod
+    def _descendants(widget: tk.Misc) -> Iterator[tk.Misc]:
+        for child in widget.winfo_children():
+            yield child
+            yield from DesktopStartupSmokeTests._descendants(child)
 
     def test_application_controller_wires_login_workspace_and_logout(self) -> None:
         try:

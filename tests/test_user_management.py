@@ -22,6 +22,7 @@ from telix.core.errors import AuthorizationError, ValidationError
 from telix.storage.json_store import JsonStore
 from telix.students.repository import StudentRepository
 from telix.students.service import StudentService
+from telix.ui.tabs.users import role_access_summary
 from tests.support import valid_student
 
 
@@ -84,6 +85,14 @@ class UserManagementTests(unittest.TestCase):
             )
         with self.assertRaises(AuthorizationError):
             admin_management.update(
+                teacher.user_id,
+                name=teacher.name,
+                email=teacher.email,
+                phone=teacher.phone,
+                role=SUPER_ADMIN,
+            )
+        with self.assertRaises(AuthorizationError):
+            admin_management.update(
                 self.super_admin.user_id,
                 name="Super Admin",
                 email="super-admin@example.invalid",
@@ -94,11 +103,22 @@ class UserManagementTests(unittest.TestCase):
             admin_management.set_active(self.super_admin.user_id, False)
 
     def test_only_admin_and_super_admin_can_access_user_management(self) -> None:
-        teacher = self._create_account(TEACHER, "teacher@example.invalid")
-        teacher_management = self._management(teacher)
+        for role in (TEACHER, FINANCE_OFFICER, STUDENT):
+            with self.subTest(role=role):
+                user = self._create_account(role, f"{role.casefold()}@example.invalid")
+                management = self._management(user)
+                with self.assertRaises(AuthorizationError):
+                    management.list()
 
-        with self.assertRaises(AuthorizationError):
-            teacher_management.list()
+    def test_access_summary_is_derived_from_role_capabilities(self) -> None:
+        teacher_summary = role_access_summary(TEACHER)
+        admin_summary = role_access_summary(ADMIN)
+
+        self.assertIn("Effective V1 access for TEACHER", teacher_summary)
+        self.assertIn("Academics: read, write", teacher_summary)
+        self.assertNotIn("users: manage", teacher_summary)
+        self.assertIn("Users: manage", admin_summary)
+        self.assertIn("All V1 capabilities", role_access_summary(SUPER_ADMIN))
 
     def test_student_link_is_required_and_removed_when_role_changes(self) -> None:
         with self.assertRaisesRegex(ValidationError, "must link to an existing"):

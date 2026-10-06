@@ -6,6 +6,7 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Any
 
+from telix.authentication.roles import capabilities_for
 from telix.core.errors import AuthorizationError, StorageError, ValidationError
 from telix.ui.tabs.base import BaseTab, TabContext
 from telix.ui.widgets.forms import add_button_row, add_search_entry
@@ -13,6 +14,22 @@ from telix.ui.widgets.tables import create_tree, replace_rows
 
 USER_COLUMNS = ("user_id", "name", "email", "role", "status", "student_id", "created_at")
 USER_WIDTHS = (210, 180, 250, 150, 90, 150, 220)
+
+
+def role_access_summary(role: str) -> str:
+    """Render the effective V1 capabilities without defining new permissions."""
+    capabilities = capabilities_for(role)
+    if "*" in capabilities:
+        return f"Effective V1 access for {role}\n✓ All V1 capabilities"
+    grouped: dict[str, list[str]] = {}
+    for capability in sorted(capabilities):
+        domain, _, actions = capability.partition(".")
+        grouped.setdefault(domain.replace("_", " ").title(), []).append(
+            actions.replace(".", " · ").replace("_", " ")
+        )
+    lines = [f"Effective V1 access for {role}"]
+    lines.extend(f"✓ {domain}: {', '.join(actions)}" for domain, actions in grouped.items())
+    return "\n".join(lines)
 
 
 class UserManagementTab(BaseTab):
@@ -114,6 +131,11 @@ class UserManagementTab(BaseTab):
         add_search_entry(tools, "Search users", self.search_query)
         ttk.Button(tools, text="Search", command=self.refresh).grid(row=0, column=2, padx=(0, 8))
         ttk.Button(tools, text="Show All", command=self._show_all).grid(row=0, column=3)
+        access = ttk.LabelFrame(self.frame, text="Selected account access profile", padding=8)
+        access.pack(fill="x", pady=(0, 10))
+        self.access_summary = tk.Text(access, height=4, wrap="word", state="disabled")
+        self.access_summary.pack(fill="x", expand=True)
+        self._set_access_summary("")
 
     def _build_table(self) -> None:
         table_frame = ttk.Frame(self.frame)
@@ -225,6 +247,15 @@ class UserManagementTab(BaseTab):
         is_student = self.values["role"].get() == "STUDENT"
         self.student_box.state(["!disabled"] if is_student else ["disabled"])
         self.student_label.configure(state="normal" if is_student else "disabled")
+        if hasattr(self, "access_summary"):
+            self._set_access_summary(self.values["role"].get())
+
+    def _set_access_summary(self, role: str) -> None:
+        text = role_access_summary(role) if role else "Select or choose a role to view its access."
+        self.access_summary.configure(state="normal")
+        self.access_summary.delete("1.0", "end")
+        self.access_summary.insert("1.0", text)
+        self.access_summary.configure(state="disabled")
 
     def _on_selected(self, _event: tk.Event[Any]) -> None:
         selected = self.tree.selection()

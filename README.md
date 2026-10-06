@@ -53,6 +53,12 @@ Telix is a local desktop school-management application built with Python and Tki
   or deactivation. Student accounts must stay linked to an existing student.
   The last active Super Admin cannot be deactivated or demoted, and a signed-in
   administrator cannot deactivate or change their own role.
+- The selected account's read-only access profile is derived from the existing
+  V1 role capability set; it does not provide per-user permission editing.
+- Optional local demo self-registration is controlled by the explicit
+  `TELIX_ENABLE_DEMO_REGISTRATION=1` environment flag. It never asks for a role
+  and creates a Teacher account only; account creation is rejected by the
+  service when the flag is off.
 
 | V1 role | Current access |
 | --- | --- |
@@ -284,6 +290,20 @@ python -m telix
 ```
 
 ### Development-only demo accounts
+
+To show **Create Local Demo Account** on the login screen in a PowerShell
+development session, explicitly enable the opt-in before launching Telix:
+
+```powershell
+$env:TELIX_ENABLE_DEMO_REGISTRATION = "1"
+python .\main.py
+```
+
+Self-registration collects full name, email, and a password with confirmation.
+It uses the existing password policy and creates only a Teacher account; it
+cannot assign Admin or Super Admin. The feature is disabled unless the flag is
+set to `1`. Keep it disabled for production installations and unset the
+environment variable when the demo session ends.
 
 For a disposable development copy only, run:
 

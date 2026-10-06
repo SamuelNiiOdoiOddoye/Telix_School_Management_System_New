@@ -8,6 +8,10 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
 
 ### Added
 
+- Opt-in local demo self-registration from the login screen. Registration
+  validates identity/password input and assigns the fixed Teacher role.
+- Read-only User Management access summaries rendered from the existing V1
+  role capability sets.
 - Fixed V1 local roles (`SUPER_ADMIN`, `ADMIN`, `TEACHER`,
   `FINANCE_OFFICER`, and `STUDENT`) with service-layer capability checks,
   role-specific student fields, and linked-student scoping for student reads.
@@ -60,6 +64,8 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
 
 ### Changed
 
+- Added the `TELIX_ENABLE_DEMO_REGISTRATION=1` development opt-in; the service
+  rejects self-registration when it is disabled.
 - The authenticated desktop workspace now opens a role-specific set of tabs;
   the session uses the persisted account role rather than a login role selector.
 - The User Management tab is visible only to Super Admins and Admins. Admins
@@ -88,6 +94,10 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
 
 ### Testing
 
+- Added tests for demo registration enablement, validation, duplicate emails,
+  role safety, persistence, and the login-screen registration dialog.
+- Added checks that User Management capability summaries reflect the existing
+  role definitions rather than custom per-user permissions.
 - Added coverage for supported-role authentication, student account linkage,
   account bootstrap idempotency, service authorization, and cross-student data
   isolation.
@@ -99,6 +109,8 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
 
 ### Documentation
 
+- Updated the README, manual acceptance checklist, and V1 overview with the
+  opt-in registration flow and production-disable guidance.
 - Updated the README, changelog, and manual acceptance checklist for teacher
   assignments, per-period academic summaries, and the remaining lifecycle
   timeline limitation.
@@ -107,6 +119,9 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
 
 ### Security
 
+- Self-registration is opt-in and hardcodes the Teacher role; no caller-supplied
+  role can grant Admin or Super Admin access.
+- Self-registration reuses the existing password hashing and password policy.
 - Rejects unknown persisted roles and student accounts without a linked record.
 - Student logins fail safely when their linked student record is no longer
   present; demo setup refuses to bind an account to a non-synthetic ID collision.

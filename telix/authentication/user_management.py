@@ -16,7 +16,6 @@ from telix.authentication.service import AuthenticationService, AuthenticatedUse
 from telix.core.errors import AuthorizationError, ValidationError
 from telix.core.validators import require_fields, validate_email, validate_phone
 
-_ACCOUNT_LABELS = {"name": "Name", "email": "Email", "phone": "Phone"}
 _PUBLIC_FIELDS = (
     "user_id",
     "name",
@@ -102,9 +101,12 @@ class UserManagementService:
             raise ValidationError("You cannot change your own role while signed in.")
         if role_changed and existing["role"] == SUPER_ADMIN and existing["active"]:
             self._require_another_active_super_admin()
-        values = require_fields({"name": name, "email": email, "phone": phone}, _ACCOUNT_LABELS)
+        values = require_fields(
+            {"name": name, "email": email},
+            {"name": "Name", "email": "Email"},
+        )
         normalized_email = validate_email(values["email"]).casefold()
-        normalized_phone = validate_phone(values["phone"], "Phone number")
+        normalized_phone = validate_phone(phone, "Phone number") if phone.strip() else ""
         duplicate = self._authentication.repository.find_by_email(normalized_email)
         if duplicate is not None and duplicate["user_id"] != existing["user_id"]:
             raise ValidationError("An account with this email already exists.")

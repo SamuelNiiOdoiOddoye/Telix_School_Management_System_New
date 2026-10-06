@@ -8,6 +8,8 @@ import io
 import logging
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+import os
 
 from telix.authentication.passwords import hash_password, verify_password
 from telix.authentication.repository import UserRepository
@@ -185,6 +187,81 @@ class AuthenticationServiceTests(unittest.TestCase):
 
         with self.assertRaisesRegex(StorageError, "invalid role"):
             self.authentication.authenticate("unknown@example.invalid", "not relevant")
+
+    def test_demo_self_registration_is_disabled_unless_explicitly_enabled(self) -> None:
+        with patch.dict(os.environ, {"TELIX_ENABLE_DEMO_REGISTRATION": "0"}):
+            with self.assertRaisesRegex(ValidationError, "registration is disabled"):
+                self.authentication.register_demo_account(
+                    "Demo Teacher",
+                    "teacher@example.invalid",
+                    self.password,
+                    self.password,
+                )
+        self.assertEqual(self.repository.list(), [])
+
+    def test_demo_self_registration_creates_persistent_teacher_account(self) -> None:
+        with patch.dict(os.environ, {"TELIX_ENABLE_DEMO_REGISTRATION": "1"}):
+            user = self.authentication.register_demo_account(
+                "  Demo Teacher  ",
+                "Teacher@Example.invalid",
+                self.password,
+                self.password,
+            )
+
+        self.assertEqual(user.role, "TEACHER")
+        self.assertEqual(user.name, "Demo Teacher")
+        self.assertEqual(user.email, "teacher@example.invalid")
+        stored = self.repository.find_by_email(user.email)
+        self.assertEqual(stored["role"], "TEACHER")
+        self.assertEqual(stored["phone"], "")
+        self.assertNotEqual(stored["password_hash"], self.password)
+        self.assertNotIn("password", stored)
+        restarted = AuthenticationService(self.repository)
+        self.assertEqual(restarted.authenticate(user.email, self.password), user)
+
+    def test_demo_self_registration_rejects_invalid_or_duplicate_input(self) -> None:
+        with patch.dict(os.environ, {"TELIX_ENABLE_DEMO_REGISTRATION": "1"}):
+            invalid_submissions = (
+                ("", "teacher@example.invalid", self.password, self.password, "complete"),
+                ("Demo Teacher", "not-an-email", self.password, self.password, "not valid"),
+                ("Demo Teacher", "teacher@example.invalid", self.password, "mismatch", "match"),
+                ("X", "teacher@example.invalid", self.password, self.password, "Full name"),
+                ("Demo Teacher", "teacher@example.invalid", "short", "short", "between 12"),
+            )
+            for name, email, password, confirmation, expected in invalid_submissions:
+                with self.subTest(expected=expected):
+                    with self.assertRaisesRegex(ValidationError, expected):
+                        self.authentication.register_demo_account(
+                            name,
+                            email,
+                            password,
+                            confirmation,
+                        )
+            self.authentication.register_demo_account(
+                "Demo Teacher",
+                "teacher@example.invalid",
+                self.password,
+                self.password,
+            )
+            with self.assertRaisesRegex(ValidationError, "already exists"):
+                self.authentication.register_demo_account(
+                    "Other Teacher",
+                    "TEACHER@example.invalid",
+                    self.password,
+                    self.password,
+                )
+
+    def test_demo_self_registration_has_no_role_input(self) -> None:
+        with patch.dict(os.environ, {"TELIX_ENABLE_DEMO_REGISTRATION": "1"}):
+            with self.assertRaises(TypeError):
+                self.authentication.register_demo_account(
+                    "Demo Teacher",
+                    "teacher@example.invalid",
+                    self.password,
+                    self.password,
+                    role="SUPER_ADMIN",
+                )
+        self.assertEqual(self.repository.list(), [])
 
 
 if __name__ == "__main__":
