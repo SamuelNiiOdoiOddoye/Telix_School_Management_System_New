@@ -7,6 +7,13 @@ from datetime import date
 from decimal import Decimal
 from typing import Any, Callable, Mapping
 
+from telix.authentication.roles import (
+    FINANCE_READ,
+    FINANCE_WRITE,
+    STUDENTS_DELETE,
+    Authorization,
+    SUPER_ADMIN,
+)
 from telix.core.errors import ValidationError
 from telix.core.identifiers import generate_id
 from telix.core.numbers import ZERO_AMOUNT, as_amount
@@ -34,9 +41,11 @@ class FinanceLedgerService:
         self,
         repository: FinanceRepository | None = None,
         student_exists: StudentExists | None = None,
+        authorization: Authorization | None = None,
     ) -> None:
         self._repository = repository or FinanceRepository()
         self._student_exists = student_exists or (lambda _student_id: False)
+        self._authorization = authorization or Authorization(SUPER_ADMIN)
 
     def list(
         self,
@@ -47,6 +56,7 @@ class FinanceLedgerService:
         end_date: str = "",
         category: str = "",
     ) -> builtins.list[dict[str, Any]]:
+        self._authorization.require(FINANCE_READ)
         start = _iso_date(start_date, "Start date") if start_date else ""
         end = _iso_date(end_date, "End date") if end_date else ""
         if start and end and start > end:
@@ -71,6 +81,7 @@ class FinanceLedgerService:
         ]
 
     def add_payment(self, values: Mapping[str, object]) -> dict[str, Any]:
+        self._authorization.require(FINANCE_WRITE)
         record = self._prepare_payment(values)
         records = self._repository.list("payment")
         records.append(record)
@@ -78,6 +89,7 @@ class FinanceLedgerService:
         return record
 
     def update_payment(self, payment_id: str, values: Mapping[str, object]) -> dict[str, Any]:
+        self._authorization.require(FINANCE_WRITE)
         records = self._repository.list("payment")
         index = find_index_by_id(records, ID_FIELDS["payment"], payment_id)
         if index is None:
@@ -102,6 +114,7 @@ class FinanceLedgerService:
         }
 
     def add_expense(self, values: Mapping[str, object]) -> dict[str, Any]:
+        self._authorization.require(FINANCE_WRITE)
         record = self._prepare_expense(values)
         records = self._repository.list("expense")
         records.append(record)
@@ -109,6 +122,7 @@ class FinanceLedgerService:
         return record
 
     def update_expense(self, expense_id: str, values: Mapping[str, object]) -> dict[str, Any]:
+        self._authorization.require(FINANCE_WRITE)
         records = self._repository.list("expense")
         index = find_index_by_id(records, ID_FIELDS["expense"], expense_id)
         if index is None:
@@ -136,6 +150,7 @@ class FinanceLedgerService:
         }
 
     def delete(self, kind: LedgerKind, record_id: str) -> dict[str, Any]:
+        self._authorization.require(FINANCE_WRITE)
         records = self._repository.list(kind)
         index = find_index_by_id(records, ID_FIELDS[kind], record_id)
         if index is None:
@@ -145,6 +160,7 @@ class FinanceLedgerService:
         return deleted
 
     def ensure_student_removable(self, student_id: str) -> None:
+        self._authorization.require(STUDENTS_DELETE)
         if self.list("payment", student_id=student_id):
             raise ValidationError(
                 "This student has payment history. Remove or retain the financial records "
@@ -154,6 +170,7 @@ class FinanceLedgerService:
     def summary(
         self, students: builtins.list[dict[str, Any]], teachers: builtins.list[dict[str, Any]]
     ) -> dict[str, Decimal]:
+        self._authorization.require(FINANCE_READ)
         payments = self._repository.list("payment")
         expenses = self._repository.list("expense")
         paid_by_student: dict[str, Decimal] = {}

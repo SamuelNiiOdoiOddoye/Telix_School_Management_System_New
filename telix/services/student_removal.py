@@ -31,6 +31,7 @@ class StudentRemovalService:
 
     def remove(self, student_id: str) -> dict[str, Any]:
         """Delete linked academic and enrollment records before the student."""
+        self._students.authorization.require("students.delete")
         if self._finance:
             self._finance.ensure_student_removable(student_id)
         self._academics.delete_for_student(student_id)

@@ -7,6 +7,12 @@ from datetime import date, timedelta
 from typing import Any, Callable, Mapping
 
 from telix.academics.structure_repository import AcademicStructureRepository, StructureKind
+from telix.authentication.roles import (
+    ACADEMIC_SETUP_READ,
+    ACADEMIC_SETUP_WRITE,
+    Authorization,
+    SUPER_ADMIN,
+)
 from telix.core.errors import StorageError, ValidationError
 from telix.core.identifiers import generate_id
 from telix.core.text import clean_text
@@ -99,20 +105,25 @@ class AcademicStructureService:
         repository: AcademicStructureRepository | None = None,
         student_exists: StudentExists | None = None,
         assignment_repository: TeacherAssignmentRepository | None = None,
+        authorization: Authorization | None = None,
     ) -> None:
         self._repository = repository or AcademicStructureRepository()
         self._student_exists = student_exists or (lambda _student_id: False)
         self._assignment_repository = assignment_repository
+        self._authorization = authorization or Authorization(SUPER_ADMIN)
 
     def list(self, kind: StructureKind) -> builtins.list[dict[str, Any]]:
+        self._authorization.require(ACADEMIC_SETUP_READ)
         return self._repository.list(kind)
 
     def get(self, kind: StructureKind, entity_id: str) -> dict[str, Any] | None:
+        self._authorization.require(ACADEMIC_SETUP_READ)
         records = self.list(kind)
         index = self._find_index(kind, records, entity_id)
         return records[index] if index is not None else None
 
     def add(self, kind: StructureKind, values: Mapping[str, object]) -> dict[str, Any]:
+        self._authorization.require(ACADEMIC_SETUP_WRITE)
         record = self._prepare(kind, values)
         records = self.list(kind)
         self._ensure_unique_id(kind, records, record[ID_FIELDS[kind]])
@@ -123,6 +134,7 @@ class AcademicStructureService:
     def update(
         self, kind: StructureKind, entity_id: str, values: Mapping[str, object]
     ) -> dict[str, Any]:
+        self._authorization.require(ACADEMIC_SETUP_WRITE)
         records = self.list(kind)
         index = self._find_index(kind, records, entity_id)
         if index is None:
@@ -135,6 +147,7 @@ class AcademicStructureService:
         return record
 
     def delete(self, kind: StructureKind, entity_id: str) -> dict[str, Any]:
+        self._authorization.require(ACADEMIC_SETUP_WRITE)
         records = self.list(kind)
         index = self._find_index(kind, records, entity_id)
         if index is None:
@@ -145,6 +158,7 @@ class AcademicStructureService:
         return record
 
     def delete_for_student(self, student_id: str) -> int:
+        self._authorization.require(ACADEMIC_SETUP_WRITE)
         target = student_id.strip().casefold()
         records = self.list("enrollment")
         remaining = [
@@ -163,6 +177,7 @@ class AcademicStructureService:
         effective_date: str,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Close the current enrollment and create its successor in one JSON save."""
+        self._authorization.require(ACADEMIC_SETUP_WRITE)
         start = _date({"date": effective_date}, "date", "Transition date")
         previous_date = (date.fromisoformat(start) - timedelta(days=1)).isoformat()
         current = self.enrollment_for_student_on(student_id, previous_date)
@@ -219,6 +234,7 @@ class AcademicStructureService:
 
     def withdraw(self, student_id: str, effective_date: str) -> dict[str, Any]:
         """End an active enrollment on the student's final enrolled date."""
+        self._authorization.require(ACADEMIC_SETUP_WRITE)
         end = _date({"date": effective_date}, "date", "Withdrawal date")
         current = self.enrollment_for_student_on(student_id, end)
         if current is None or current.get("status") != "active":
@@ -239,6 +255,7 @@ class AcademicStructureService:
     def enrollment_for_student_on(
         self, student_id: str, enrollment_date: str
     ) -> dict[str, Any] | None:
+        self._authorization.require(ACADEMIC_SETUP_READ)
         target = student_id.strip().casefold()
         date_value = _date({"date": enrollment_date}, "date", "Attendance date")
         day = date.fromisoformat(date_value)

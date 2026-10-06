@@ -8,6 +8,12 @@ from tkinter import filedialog, ttk
 from typing import Any
 
 from telix.attendance.rules import ATTENDANCE_STATUSES
+from telix.authentication.roles import (
+    REPORTS_FINANCE,
+    REPORTS_OPERATIONAL,
+    REPORTS_OWN,
+    REPORTS_TEACHING,
+)
 from telix.core.errors import StorageError, ValidationError
 from telix.core.formatting import format_currency
 from telix.core.numbers import as_amount
@@ -136,28 +142,39 @@ class ReportsTab(BaseTab):
     def _build_report_tables(self) -> None:
         self.notebook = ttk.Notebook(self.frame)
         self.notebook.pack(fill="both", expand=True)
-        self.student_tree = self._build_page(
-            "Student & Parent Details", STUDENT_COLUMNS, STUDENT_WIDTHS, "students"
-        )
-        self.teacher_tree = self._build_page(
-            "Teacher Details", TEACHER_COLUMNS, TEACHER_WIDTHS, "teachers"
-        )
-        self.academic_tree = self._build_page(
-            "Academic Records", ACADEMIC_COLUMNS, ACADEMIC_WIDTHS, "academic-records"
-        )
-        self.assessment_tree = self._build_page(
-            "Assessments", ASSESSMENT_COLUMNS, ASSESSMENT_WIDTHS, "assessments"
-        )
-        self.attendance_tree = self._build_page(
-            "Attendance",
-            ATTENDANCE_COLUMNS,
-            ATTENDANCE_WIDTHS,
-            "attendance",
-            self.attendance_summary,
-        )
-        self.finance_tree = self._build_page(
-            "Finance", FINANCE_COLUMNS, FINANCE_WIDTHS, "finance", self.finance_summary
-        )
+        authorization = self.context.services.authorization
+        if any(
+            authorization.allows(capability)
+            for capability in (REPORTS_OPERATIONAL, REPORTS_TEACHING, REPORTS_OWN)
+        ):
+            self.student_tree = self._build_page(
+                "Student Details", STUDENT_COLUMNS, STUDENT_WIDTHS, "students"
+            )
+        if authorization.allows(REPORTS_OPERATIONAL):
+            self.teacher_tree = self._build_page(
+                "Teacher Details", TEACHER_COLUMNS, TEACHER_WIDTHS, "teachers"
+            )
+        if any(
+            authorization.allows(capability)
+            for capability in (REPORTS_OPERATIONAL, REPORTS_TEACHING, REPORTS_OWN)
+        ):
+            self.academic_tree = self._build_page(
+                "Academic Records", ACADEMIC_COLUMNS, ACADEMIC_WIDTHS, "academic-records"
+            )
+            self.assessment_tree = self._build_page(
+                "Assessments", ASSESSMENT_COLUMNS, ASSESSMENT_WIDTHS, "assessments"
+            )
+            self.attendance_tree = self._build_page(
+                "Attendance",
+                ATTENDANCE_COLUMNS,
+                ATTENDANCE_WIDTHS,
+                "attendance",
+                self.attendance_summary,
+            )
+        if authorization.allows(REPORTS_FINANCE):
+            self.finance_tree = self._build_page(
+                "Finance", FINANCE_COLUMNS, FINANCE_WIDTHS, "finance", self.finance_summary
+            )
 
     def _build_page(
         self,
@@ -191,6 +208,17 @@ class ReportsTab(BaseTab):
     def refresh(self) -> None:
         try:
             services = self.context.services
+            authorization = services.authorization
+            if authorization.allows(REPORTS_FINANCE) and not authorization.allows(
+                REPORTS_OPERATIONAL
+            ):
+                categories = sorted({row["category"] for row in services.finance.list("expense")})
+                category_options = ["All", *categories]
+                self.finance_category_box["values"] = category_options
+                if self.finance_category_filter.get() not in category_options:
+                    self.finance_category_filter.set("All")
+                self._render_finance()
+                return
             self.class_filter_box["values"] = ["All", *services.students.classes()]
             if self.class_filter.get() not in self.class_filter_box["values"]:
                 self.class_filter.set("All")
@@ -218,22 +246,19 @@ class ReportsTab(BaseTab):
                     for student in students
                     if student["class_name"].casefold() == selected_class.casefold()
                 ]
-            teachers = services.teachers.list()
-            teacher_query = self.teacher_filter.get().strip().casefold()
-            if teacher_query:
-                teachers = [
-                    teacher
-                    for teacher in teachers
-                    if teacher_query in teacher["teacher_id"].casefold()
-                    or teacher_query in teacher["name"].casefold()
-                ]
-            categories = sorted({row["category"] for row in services.finance.list("expense")})
-            category_options = ["All", *categories]
-            self.finance_category_box["values"] = category_options
-            if self.finance_category_filter.get() not in category_options:
-                self.finance_category_filter.set("All")
-            render_records(self.student_tree, students, STUDENT_COLUMNS)
-            render_records(self.teacher_tree, teachers, TEACHER_COLUMNS)
+            if authorization.allows(REPORTS_OPERATIONAL):
+                teachers = services.teachers.list()
+                teacher_query = self.teacher_filter.get().strip().casefold()
+                if teacher_query:
+                    teachers = [
+                        teacher
+                        for teacher in teachers
+                        if teacher_query in teacher["teacher_id"].casefold()
+                        or teacher_query in teacher["name"].casefold()
+                    ]
+                render_records(self.teacher_tree, teachers, TEACHER_COLUMNS)
+            if hasattr(self, "student_tree"):
+                render_records(self.student_tree, students, STUDENT_COLUMNS)
             academic_query = self.academic_query.get().strip().casefold()
             self._render_academic_report(students, academic_query)
             self._render_assessments(students, academic_query)
@@ -246,7 +271,13 @@ class ReportsTab(BaseTab):
                 if self.attendance_status_filter.get() == "All"
                 else self.attendance_status_filter.get(),
             )
-            self._render_finance()
+            if authorization.allows(REPORTS_FINANCE):
+                categories = sorted({row["category"] for row in services.finance.list("expense")})
+                category_options = ["All", *categories]
+                self.finance_category_box["values"] = category_options
+                if self.finance_category_filter.get() not in category_options:
+                    self.finance_category_filter.set("All")
+                self._render_finance()
         except (StorageError, ValidationError) as error:
             self.context.feedback.error(str(error))
 
@@ -411,7 +442,8 @@ class ReportsTab(BaseTab):
             )
         replace_rows(self.finance_tree, sorted(records, key=lambda row: row[1][1], reverse=True))
         summary = ledger.summary(
-            self.context.services.students.list(), self.context.services.teachers.list()
+            self.context.services.students.list(),
+            self.context.services.teachers.salary_records(),
         )
         self.finance_summary.set(
             f"School-to-date expected: {format_currency(summary['expected_fee_income'])} · "
@@ -422,14 +454,19 @@ class ReportsTab(BaseTab):
         )
 
     def export(self, report_name: str) -> None:
-        tree = {
-            "students": self.student_tree,
-            "teachers": self.teacher_tree,
-            "academic-records": self.academic_tree,
-            "assessments": self.assessment_tree,
-            "attendance": self.attendance_tree,
-            "finance": self.finance_tree,
-        }[report_name]
+        tree_by_name = {
+            name: getattr(self, attribute)
+            for name, attribute in (
+                ("students", "student_tree"),
+                ("teachers", "teacher_tree"),
+                ("academic-records", "academic_tree"),
+                ("assessments", "assessment_tree"),
+                ("attendance", "attendance_tree"),
+                ("finance", "finance_tree"),
+            )
+            if hasattr(self, attribute)
+        }
+        tree = tree_by_name[report_name]
         target = filedialog.asksaveasfilename(
             parent=self.frame,
             title="Export report",

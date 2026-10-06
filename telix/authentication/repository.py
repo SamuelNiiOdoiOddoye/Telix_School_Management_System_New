@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from telix.authentication.roles import STUDENT, V1_ROLES
 from telix.config import USERS_FILE
 from telix.core.errors import StorageError, ValidationError
 from telix.storage.json_store import JsonStore
@@ -30,6 +31,11 @@ class UserRepository:
                 )
             ):
                 raise StorageError("users.json contains an invalid account record.")
+            if user["role"] not in V1_ROLES or (
+                user["role"] == STUDENT
+                and (not isinstance(user.get("student_id"), str) or not user["student_id"].strip())
+            ):
+                raise StorageError("users.json contains an invalid role or student link.")
         return users
 
     def find_by_email(self, email: str) -> dict[str, Any] | None:

@@ -7,3 +7,7 @@ class ValidationError(ValueError):
 
 class StorageError(RuntimeError):
     """Raised when a JSON record file cannot be read or saved safely."""
+
+
+class AuthorizationError(PermissionError):
+    """Raised when the authenticated V1 role cannot perform an operation."""

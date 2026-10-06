@@ -12,6 +12,14 @@ from telix.academics.rules import ensure_student_exists, ensure_unique_subject
 from telix.academics.structure_repository import StructureKind
 from telix.academics.structure_service import AcademicStructureService
 from telix.academics.validator import prepare_academic_record
+from telix.authentication.roles import (
+    ACADEMICS_DELETE,
+    ACADEMICS_READ,
+    ACADEMICS_READ_OWN,
+    ACADEMICS_WRITE,
+    Authorization,
+    SUPER_ADMIN,
+)
 from telix.core.errors import ValidationError
 from telix.core.search import find_by_id, find_index_by_id
 
@@ -24,21 +32,28 @@ class AcademicRecordService:
         self,
         repository: AcademicRepository | None = None,
         structure: AcademicStructureService | None = None,
+        authorization: Authorization | None = None,
     ) -> None:
         self._repository = repository or AcademicRepository()
         self._structure = structure
+        self._authorization = authorization or Authorization(SUPER_ADMIN)
 
     def list(self) -> builtins.list[dict[str, Any]]:
-        return self._repository.list()
+        self._authorization.require_any(ACADEMICS_READ, ACADEMICS_READ_OWN)
+        return self._authorization.filter_student_records(self._repository.list())
 
     def get(self, academic_id: str) -> dict[str, Any] | None:
         return find_by_id(self.list(), "academic_id", academic_id)
 
     def for_student(self, student_id: str) -> builtins.list[dict[str, Any]]:
-        target = student_id.strip().casefold()
+        target = self._authorization.scoped_student_id(student_id).casefold()
         return [record for record in self.list() if record["student_id"].casefold() == target]
 
     def period_summaries(self, student_id: str | None = None) -> builtins.list[dict[str, Any]]:
+        self._authorization.require_any(ACADEMICS_READ, ACADEMICS_READ_OWN)
+        scoped_id = self._authorization.scoped_student_id(student_id or "")
+        if scoped_id:
+            student_id = scoped_id
         target = student_id.strip().casefold() if student_id else None
         groups: dict[tuple[str, ...], list[dict[str, Any]]] = defaultdict(list)
         for record in self.list():
@@ -78,6 +93,7 @@ class AcademicRecordService:
         return summaries
 
     def add(self, values: Mapping[str, object], student_exists: StudentExists) -> dict[str, Any]:
+        self._authorization.require(ACADEMICS_WRITE)
         record = prepare_academic_record(values)
         ensure_student_exists(record["student_id"], student_exists)
         self._attach_catalog_references(record)
@@ -93,6 +109,7 @@ class AcademicRecordService:
         values: Mapping[str, object],
         student_exists: StudentExists,
     ) -> dict[str, Any]:
+        self._authorization.require(ACADEMICS_WRITE)
         record = prepare_academic_record(values, existing_academic_id)
         ensure_student_exists(record["student_id"], student_exists)
         records = self.list()
@@ -106,6 +123,7 @@ class AcademicRecordService:
         return record
 
     def delete(self, academic_id: str) -> dict[str, Any]:
+        self._authorization.require(ACADEMICS_DELETE)
         records = self.list()
         index = find_index_by_id(records, "academic_id", academic_id)
         if index is None:
@@ -115,6 +133,7 @@ class AcademicRecordService:
         return deleted
 
     def delete_for_student(self, student_id: str) -> int:
+        self._authorization.require(ACADEMICS_DELETE)
         target = student_id.strip().casefold()
         records = self.list()
         remaining = [record for record in records if record["student_id"].casefold() != target]

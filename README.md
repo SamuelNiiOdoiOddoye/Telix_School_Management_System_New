@@ -1,6 +1,6 @@
 # Telix School Management System
 
-Telix is a local desktop school-management application built with Python and Tkinter. A local Super Admin can maintain student, teacher, academic, attendance, and finance records, review linked reports, and export visible report data.
+Telix is a local desktop school-management application built with Python and Tkinter. Local V1 accounts use fixed roles to manage or review student, teacher, academic, attendance, and finance records, with linked reports and CSV export.
 
 > **Project status:** This is a local desktop application backed by JSON files. It is not yet a multi-user or hosted school-management platform. Review [Known limitations](#known-limitations-and-roadmap) and [Data handling and privacy](#data-handling-and-privacy) before using real student information.
 
@@ -25,19 +25,39 @@ Telix is a local desktop school-management application built with Python and Tki
 
 ## Current features
 
-### Authentication
+### V1 local accounts and roles
 
-- Requires a local Super Admin login before creating the school-management
-  workspace. Logging out clears the in-memory session and returns to login.
-- Compares account emails case-insensitively and uses the same failure message
-  for missing, disabled, and incorrectly authenticated accounts.
-- Stores salted `scrypt` password hashes only. Passwords are excluded from the
-  session object, reports, and application log messages.
-- Provides a one-time bootstrap command and refuses to overwrite an existing
-  Super Admin account.
+- Requires a local account login before opening the workspace. Role is loaded
+  from the account record; the login screen has no role selector. Logout clears
+  the in-memory session and returns to login.
+- Supports `SUPER_ADMIN`, `ADMIN`, `TEACHER`, `FINANCE_OFFICER`, and `STUDENT`.
+  Navigation is role-aware and service methods independently enforce
+  permissions; hiding a tab is not the security boundary.
+- Student accounts require a persisted link to one student ID. Student service
+  reads, academic history, assessment scores, attendance, and report exports
+  are scoped to that link, and cannot be widened by supplying another ID.
+- Teacher, finance, and student views return only fields needed for their
+  role. Finance access includes student fee/payment information and salary
+  summaries, not teacher personal records.
+- Account emails are compared case-insensitively and invalid login feedback
+  does not distinguish missing, disabled, or incorrect credentials.
+- Stores salted `scrypt` password hashes only. Passwords are excluded from
+  authenticated-user objects, reports, and application log messages.
+- The one-time Super Admin bootstrap refuses to replace an existing
+  Super Admin. Additional accounts are created only by the explicit local
+  development demo bootstrap or by future account-management functionality.
 
-This is a single local desktop account, not V2 role-based access control, and
-does not protect files from someone with direct access to the computer.
+| V1 role | Current access |
+| --- | --- |
+| `SUPER_ADMIN` | All V1 workflows and records |
+| `ADMIN` | School operations, academics, attendance, reports, and finance |
+| `TEACHER` | Limited student identity/class details, academics, assessments, attendance, and teaching reports; no finance or teacher personnel files |
+| `FINANCE_OFFICER` | Fee/payment records, expenses, fee-relevant student fields, salary totals, and finance reports; no academic or teacher personal records |
+| `STUDENT` | Own linked student profile fields, academic history, assessments, attendance, and own reports only |
+
+V1 role enforcement is local application authorization, not hosted identity,
+multi-user coordination, audit logging, or protection from someone with direct
+access to the computer and its JSON files.
 
 ### Dashboard
 
@@ -256,6 +276,25 @@ Alternatively:
 python -m telix
 ```
 
+### Development-only demo accounts
+
+For a disposable development copy only, run:
+
+```powershell
+python -m telix.bootstrap_demo_accounts
+```
+
+The repeatable bootstrap creates these reserved `.invalid` accounts when they
+are missing: `demo-super-admin@telix.example.invalid`,
+`demo-admin@telix.example.invalid`, `demo-teacher@telix.example.invalid`,
+`demo-finance@telix.example.invalid`, and
+`demo-student@telix.example.invalid`. It creates the synthetic
+`DEMO-STU-001` record only if that ID is absent and links the student account
+to it. It never resets an existing account or password. Each missing account's
+password and confirmation are entered interactively with hidden input; no
+demo password is published or embedded in source code. Do not run this
+bootstrap against production data.
+
 On systems where the `python` launcher points to the wrong interpreter, use the full path to the desired Python executable in place of `python`.
 
 The app requires a graphical desktop session. The current test suite does not need to open a Tkinter window.
@@ -316,10 +355,11 @@ Money is held and calculated as `Decimal` in application code. New fee and salar
 
 These files may contain sensitive personal information about children, families, and staff. Keep them out of public repositories and untrusted backups. The `.gitignore` excludes the record files, legacy data directory, backups, logs, Python bytecode, local environments, and the bundled `ai changes/` directory from future untracked additions. The `ai changes/` directory is personal local material: it is intentionally not part of the project source. **Ignoring a path does not untrack files already committed or staged by Git.** Check tracked files and repository history before publishing; removing a sensitive file from the latest commit does not remove it from earlier commits.
 
-The application provides one local Super Admin login, but has no encryption at
-rest, audit history, account recovery, or full role/permission management.
-Keep the repository and local data files private and use operating-system
-account security. The account file and its backups are ignored by Git.
+The application has no encryption at rest, audit history, or account recovery.
+Role policy is a fixed V1 capability map rather than configurable permission
+management. Keep the repository and local data files private and use
+operating-system account security. The account file and its backups are ignored
+by Git.
 
 ## Architecture
 
@@ -396,9 +436,10 @@ The restructure is intended to preserve the existing screens, record locations, 
 
 ## Development phases
 
-Telix is being developed in stages. The current product is **V1: a local,
-single-user desktop application**. V1.x progressively completes and hardens
-that application; it is not an enterprise SaaS product. **V2 is a separate
+Telix is being developed in stages. The current product is **V1: a local, single-machine desktop application
+with one active account session at a time**. It supports fixed local V1 roles
+and does not coordinate concurrent users. V1.x progressively completes and
+hardens that application; it is not an enterprise SaaS product. **V2 is a separate
 planned evolution** into the larger multi-user, multi-tenant Telix platform.
 Roadmap items below are planned unless explicitly identified as implemented.
 
@@ -516,7 +557,8 @@ and documentation meet its acceptance criteria.
 
 **Status: In progress.** This README documents the current product, its
 limitations, authentication setup, and the staged V1-to-V2 boundary. Local V1
-Super Admin login, logout, and secure bootstrap are implemented. Before
+Local role-based login/logout, student record scoping, Super Admin bootstrap,
+and development-only demo-account bootstrap are implemented. Before
 declaring and tagging a V1 release, complete the full acceptance criteria,
 verify manual desktop workflows and clean-install behavior, confirm passing
 CI, and review documentation against the shipped behavior. No V1 release tag
@@ -525,7 +567,7 @@ is claimed by this roadmap.
 ### V1 completion criteria
 
 V1 is not complete until the application reliably demonstrates secure local
-Super Admin login/logout/bootstrap; core student and teacher records; managed
+V1 role-aware login/logout/bootstrap; core student and teacher records; managed
 classes, subjects, years, terms and enrollment; academics and student history;
 attendance and lifecycle workflows; per-student expected fees, payments,
 outstanding/credit balances, expenses, and accurate cash summaries; useful
@@ -574,8 +616,9 @@ be represented as current V1 features.
 
 ## Known limitations
 
-- The current application is local and single-user with one Super Admin
-  account. It has no role/permission management, tenant isolation, or
+- The current application is local and single-machine. It supports fixed
+  Super Admin, Admin, Teacher, Finance Officer, and linked Student V1 roles,
+  but has no tenant isolation, configurable role management, or coordinated
   multi-user access. Authentication does not encrypt local JSON data at rest
   or prevent access by a person who can read the account file or application
   source on the same computer.

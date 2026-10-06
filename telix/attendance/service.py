@@ -8,6 +8,14 @@ from decimal import Decimal
 from typing import Any, Callable, Mapping
 
 from telix.academics.structure_service import AcademicStructureService
+from telix.authentication.roles import (
+    ATTENDANCE_DELETE,
+    ATTENDANCE_READ,
+    ATTENDANCE_READ_OWN,
+    ATTENDANCE_WRITE,
+    Authorization,
+    SUPER_ADMIN,
+)
 from telix.attendance.repository import AttendanceRepository
 from telix.attendance.rules import ATTENDANCE_STATUSES, ATTENDED_STATUSES
 from telix.core.errors import ValidationError
@@ -23,10 +31,12 @@ class AttendanceService:
         repository: AttendanceRepository,
         structure: AcademicStructureService,
         student_exists: Callable[[str], bool],
+        authorization: Authorization | None = None,
     ) -> None:
         self._repository = repository
         self._structure = structure
         self._student_exists = student_exists
+        self._authorization = authorization or Authorization(SUPER_ADMIN)
 
     def list(
         self,
@@ -38,6 +48,8 @@ class AttendanceService:
         class_id: str = "",
         status: str = "",
     ) -> builtins.list[dict[str, Any]]:
+        self._authorization.require_any(ATTENDANCE_READ, ATTENDANCE_READ_OWN)
+        student_id = self._authorization.scoped_student_id(student_id)
         date_filters = {
             "Attendance filter date": attendance_date.strip(),
             "Attendance start date": start_date.strip(),
@@ -59,7 +71,7 @@ class AttendanceService:
             raise ValidationError(
                 f"Attendance status must be one of: {', '.join(ATTENDANCE_STATUSES)}."
             )
-        records = self._repository.list()
+        records = self._authorization.filter_student_records(self._repository.list())
         target_student = student_id.strip().casefold()
         target_class = class_id.strip().casefold()
         return [
@@ -76,17 +88,20 @@ class AttendanceService:
         ]
 
     def get(self, attendance_id: str) -> dict[str, Any] | None:
+        self._authorization.require_any(ATTENDANCE_READ, ATTENDANCE_READ_OWN)
         target = attendance_id.strip().casefold()
         return next(
             (
                 record
-                for record in self._repository.list()
+                for record in self.list()
                 if str(record.get("attendance_id", "")).casefold() == target
             ),
             None,
         )
 
     def add(self, values: Mapping[str, object]) -> dict[str, Any]:
+        self._authorization.require(ATTENDANCE_WRITE)
+        self._authorization.scoped_student_id(str(values.get("student_id", "")))
         record = self._prepare(values)
         records = self._repository.list()
         self._ensure_unique(records, record)
@@ -94,6 +109,8 @@ class AttendanceService:
         return record
 
     def update(self, attendance_id: str, values: Mapping[str, object]) -> dict[str, Any]:
+        self._authorization.require(ATTENDANCE_WRITE)
+        self._authorization.scoped_student_id(str(values.get("student_id", "")))
         records = self._repository.list()
         index = find_index_by_id(records, "attendance_id", attendance_id)
         if index is None:
@@ -105,6 +122,7 @@ class AttendanceService:
         return record
 
     def delete(self, attendance_id: str) -> dict[str, Any]:
+        self._authorization.require(ATTENDANCE_DELETE)
         records = self._repository.list()
         index = find_index_by_id(records, "attendance_id", attendance_id)
         if index is None:
@@ -114,6 +132,7 @@ class AttendanceService:
         return deleted
 
     def delete_for_student(self, student_id: str) -> int:
+        self._authorization.require(ATTENDANCE_DELETE)
         target = student_id.strip().casefold()
         records = self._repository.list()
         remaining = [
@@ -127,7 +146,10 @@ class AttendanceService:
         return deleted_count
 
     def summary(self, records: builtins.list[dict[str, Any]] | None = None) -> dict[str, Any]:
-        selected = self._repository.list() if records is None else records
+        self._authorization.require_any(ATTENDANCE_READ, ATTENDANCE_READ_OWN)
+        selected = (
+            self.list() if records is None else self._authorization.filter_student_records(records)
+        )
         counts = {
             status: sum(record.get("status") == status for record in selected)
             for status in ATTENDANCE_STATUSES

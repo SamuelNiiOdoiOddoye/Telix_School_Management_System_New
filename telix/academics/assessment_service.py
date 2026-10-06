@@ -8,6 +8,14 @@ from typing import Any, Callable, Mapping, Sequence
 
 from telix.academics.assessment_repository import AssessmentRepository
 from telix.academics.structure_service import AcademicStructureService
+from telix.authentication.roles import (
+    ASSESSMENTS_DELETE,
+    ASSESSMENTS_READ,
+    ASSESSMENTS_READ_OWN,
+    ASSESSMENTS_WRITE,
+    Authorization,
+    SUPER_ADMIN,
+)
 from telix.core.errors import ValidationError
 from telix.core.identifiers import generate_id
 from telix.core.numbers import parse_amount
@@ -22,15 +30,19 @@ class AssessmentService:
         repository: AssessmentRepository | None = None,
         structure: AcademicStructureService | None = None,
         student_exists: StudentExists | None = None,
+        authorization: Authorization | None = None,
     ) -> None:
         self._repository = repository or AssessmentRepository()
         self._structure = structure
         self._student_exists = student_exists or (lambda _student_id: False)
+        self._authorization = authorization or Authorization(SUPER_ADMIN)
 
     def list(self) -> builtins.list[dict[str, Any]]:
-        return self._repository.list("assessment")
+        self._authorization.require_any(ASSESSMENTS_READ, ASSESSMENTS_READ_OWN)
+        return self._authorization.filter_student_records(self._repository.list("assessment"))
 
     def profiles(self) -> builtins.list[dict[str, Any]]:
+        self._authorization.require_any(ASSESSMENTS_READ, ASSESSMENTS_READ_OWN)
         return self._repository.list("profile")
 
     def configure(
@@ -41,6 +53,7 @@ class AssessmentService:
         components: Sequence[Mapping[str, object]],
         grade_bands: Sequence[Mapping[str, object]],
     ) -> dict[str, Any]:
+        self._authorization.require(ASSESSMENTS_WRITE)
         if self._structure is None:
             raise ValidationError("Academic catalogs are unavailable; refresh and try again.")
         year = self._structure.get("academic_year", academic_year_id)
@@ -99,6 +112,8 @@ class AssessmentService:
         return profile
 
     def add(self, values: Mapping[str, object]) -> dict[str, Any]:
+        self._authorization.require(ASSESSMENTS_WRITE)
+        self._authorization.scoped_student_id(str(values.get("student_id", "")))
         record = self._prepare_assessment(values)
         records = self.list()
         if any(self._same_assessment_key(existing, record) for existing in records):
@@ -108,6 +123,8 @@ class AssessmentService:
         return record
 
     def update(self, assessment_id: str, values: Mapping[str, object]) -> dict[str, Any]:
+        self._authorization.require(ASSESSMENTS_WRITE)
+        self._authorization.scoped_student_id(str(values.get("student_id", "")))
         records = self.list()
         index = next(
             (
@@ -130,6 +147,7 @@ class AssessmentService:
         return updated
 
     def delete(self, assessment_id: str) -> dict[str, Any]:
+        self._authorization.require(ASSESSMENTS_DELETE)
         records = self.list()
         index = next(
             (
@@ -146,6 +164,7 @@ class AssessmentService:
         return deleted
 
     def delete_for_student(self, student_id: str) -> int:
+        self._authorization.require(ASSESSMENTS_DELETE)
         target = student_id.strip().casefold()
         records = self.list()
         remaining = [
@@ -159,6 +178,7 @@ class AssessmentService:
     def grade(
         self, student_id: str, subject_id: str, academic_year_id: str, term_id: str
     ) -> dict[str, Any]:
+        student_id = self._authorization.scoped_student_id(student_id)
         profile = self._profile_for(academic_year_id, term_id)
         if profile is None:
             raise ValidationError("Configure grading components and grade bands first.")

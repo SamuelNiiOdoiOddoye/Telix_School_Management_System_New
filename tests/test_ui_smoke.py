@@ -4,6 +4,7 @@ import tkinter as tk
 import secrets
 
 from telix.authentication.service import AuthenticatedUser, AuthenticationService
+from telix.authentication.roles import STUDENT, TEACHER, Authorization
 from telix.authentication.repository import UserRepository
 from telix.authentication.session import UserSession
 from telix.storage.json_store import JsonStore
@@ -165,6 +166,111 @@ class DesktopStartupSmokeTests(ServiceTestCase):
             setup.assignment_editor.selected_id = assignment_id
             setup.delete_assignment()
             self.assertEqual(self.teacher_assignments.list(), [])
+        finally:
+            root.destroy()
+
+    def _services_for_role(self, role: str, student_id: str = "") -> Services:
+        authorization = Authorization(role, student_id)
+        services = (
+            self.students,
+            self.teachers,
+            self.academics,
+            self.assessments,
+            self.academic_structure,
+            self.attendance,
+            self.finance,
+            self.teacher_assignments,
+        )
+        for service in services:
+            service._authorization = authorization
+        return Services(
+            self.students,
+            self.teachers,
+            self.academics,
+            self.assessments,
+            self.academic_structure,
+            self.attendance,
+            self.finance,
+            self.removal,
+            self.teacher_assignments,
+            authorization=authorization,
+        )
+
+    def test_teacher_workspace_limits_tabs_and_student_personal_fields(self) -> None:
+        try:
+            root = tk.Tk()
+        except tk.TclError as error:
+            self.skipTest(f"Tk desktop display is unavailable: {error}")
+        try:
+            root.withdraw()
+            self.students.add(valid_student())
+            session = UserSession()
+            session.start(
+                AuthenticatedUser(
+                    user_id="USR-TEACHER",
+                    name="Demo Teacher",
+                    email="teacher@example.invalid",
+                    phone="+12025550123",
+                    role=TEACHER,
+                )
+            )
+            application = SchoolManagementSystem(
+                root,
+                self._services_for_role(TEACHER),
+                session,
+                lambda: None,
+            )
+            root.update()
+
+            self.assertNotIn("finance", application.tabs)
+            self.assertNotIn("teachers", application.tabs)
+            self.assertNotIn("academic_setup", application.tabs)
+            self.assertEqual(
+                tuple(application.tabs["students"].tree["columns"]),
+                ("student_id", "name", "class_name", "status"),
+            )
+            application.logout()
+        finally:
+            root.destroy()
+
+    def test_student_workspace_shows_only_linked_student_report(self) -> None:
+        try:
+            root = tk.Tk()
+        except tk.TclError as error:
+            self.skipTest(f"Tk desktop display is unavailable: {error}")
+        try:
+            root.withdraw()
+            self.students.add(valid_student(student_id="STU-001", name="Linked Student"))
+            self.students.add(valid_student(student_id="STU-002", name="Other Student"))
+            session = UserSession()
+            session.start(
+                AuthenticatedUser(
+                    user_id="USR-STUDENT",
+                    name="Linked Student",
+                    email="student@example.invalid",
+                    phone="+12025550123",
+                    role=STUDENT,
+                    student_id="STU-001",
+                )
+            )
+            application = SchoolManagementSystem(
+                root,
+                self._services_for_role(STUDENT, "STU-001"),
+                session,
+                lambda: None,
+            )
+            root.update()
+            reports = application.tabs["reports"]
+            visible_rows = reports.student_tree.get_children()
+
+            self.assertEqual(set(application.tabs), {"dashboard", "reports"})
+            self.assertEqual(len(visible_rows), 1)
+            self.assertEqual(
+                reports.student_tree.item(visible_rows[0], "values")[0],
+                "STU-001",
+            )
+            self.assertNotIn("finance_tree", reports.__dict__)
+            application.logout()
         finally:
             root.destroy()
 

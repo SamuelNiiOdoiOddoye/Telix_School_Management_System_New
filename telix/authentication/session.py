@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from telix.authentication.roles import STUDENT, V1_ROLES
 from telix.authentication.service import AuthenticatedUser
 
 
@@ -18,8 +19,8 @@ class UserSession:
         return self._user is not None
 
     def start(self, user: AuthenticatedUser) -> None:
-        if user.role != "SUPER_ADMIN":
-            raise ValueError("Only a Super Admin can start the V1 desktop session.")
+        if user.role not in V1_ROLES or (user.role == STUDENT and not user.student_id.strip()):
+            raise ValueError("A valid V1 account is required to start the desktop session.")
         self._user = user
 
     def clear(self) -> None:

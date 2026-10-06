@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from telix.attendance.repository import AttendanceRepository
 from telix.attendance.service import AttendanceService
+from telix.authentication.roles import Authorization, SUPER_ADMIN
+from telix.authentication.service import AuthenticatedUser
 from telix.academics.assessment_repository import AssessmentRepository
 from telix.academics.assessment_service import AssessmentService
 from telix.academics.service import AcademicRecordService
@@ -30,26 +32,56 @@ class Services:
     finance: FinanceLedgerService
     student_removal: StudentRemovalService
     teacher_assignments: TeacherAssignmentService
+    authorization: Authorization = field(default_factory=lambda: Authorization(SUPER_ADMIN))
+
+    def __post_init__(self) -> None:
+        service_authorizations = (
+            self.students._authorization,
+            self.teachers._authorization,
+            self.academics._authorization,
+            self.assessments._authorization,
+            self.academic_structure._authorization,
+            self.attendance._authorization,
+            self.finance._authorization,
+            self.teacher_assignments._authorization,
+        )
+        if any(policy != self.authorization for policy in service_authorizations):
+            raise ValueError("All application services must share one authorization policy.")
 
 
-def build_services() -> Services:
-    students = StudentService()
+def build_services(user: AuthenticatedUser | None = None) -> Services:
+    authorization = (
+        Authorization(user.role, user.student_id)
+        if user is not None
+        else Authorization(SUPER_ADMIN)
+    )
+    students = StudentService(authorization=authorization)
     assignment_repository = TeacherAssignmentRepository()
-    teachers = TeacherService(assignment_repository=assignment_repository)
+    teachers = TeacherService(
+        assignment_repository=assignment_repository,
+        authorization=authorization,
+    )
     academic_structure = AcademicStructureService(
         student_exists=students.exists,
         assignment_repository=assignment_repository,
+        authorization=authorization,
     )
     teacher_assignments = TeacherAssignmentService(
         assignment_repository,
         teachers.get,
         academic_structure.get,
+        authorization=authorization,
     )
-    academics = AcademicRecordService(structure=academic_structure)
-    assessments = AssessmentService(AssessmentRepository(), academic_structure, students.exists)
-    attendance = AttendanceService(AttendanceRepository(), academic_structure, students.exists)
-    finance = FinanceLedgerService(FinanceRepository(), students.exists)
+    academics = AcademicRecordService(structure=academic_structure, authorization=authorization)
+    assessments = AssessmentService(
+        AssessmentRepository(), academic_structure, students.exists, authorization
+    )
+    attendance = AttendanceService(
+        AttendanceRepository(), academic_structure, students.exists, authorization
+    )
+    finance = FinanceLedgerService(FinanceRepository(), students.exists, authorization)
     return Services(
+        authorization=authorization,
         students=students,
         teachers=teachers,
         academics=academics,

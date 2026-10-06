@@ -5,6 +5,11 @@ from __future__ import annotations
 import builtins
 from typing import Any, Callable, Mapping
 
+from telix.authentication.roles import (
+    ACADEMIC_SETUP_WRITE,
+    Authorization,
+    SUPER_ADMIN,
+)
 from telix.core.errors import ValidationError
 from telix.core.identifiers import generate_id
 from telix.core.search import find_index_by_id
@@ -22,21 +27,26 @@ class TeacherAssignmentService:
         repository: TeacherAssignmentRepository | None = None,
         teacher_lookup: EntityLookup | None = None,
         catalog_lookup: CatalogLookup | None = None,
+        authorization: Authorization | None = None,
     ) -> None:
         self._repository = repository or TeacherAssignmentRepository()
         self._teacher_lookup = teacher_lookup or (lambda _teacher_id: None)
         self._catalog_lookup = catalog_lookup or (lambda _kind, _entity_id: None)
+        self._authorization = authorization or Authorization(SUPER_ADMIN)
 
     def list(self) -> builtins.list[dict[str, Any]]:
+        self._authorization.require(ACADEMIC_SETUP_WRITE)
         return self._repository.list()
 
     def for_teacher(self, teacher_id: str) -> builtins.list[dict[str, Any]]:
+        self._authorization.require(ACADEMIC_SETUP_WRITE)
         target = teacher_id.strip().casefold()
         return [
             item for item in self.list() if str(item.get("teacher_id", "")).casefold() == target
         ]
 
     def add(self, values: Mapping[str, object]) -> dict[str, Any]:
+        self._authorization.require(ACADEMIC_SETUP_WRITE)
         record = self._prepare(values, generate_id("TAS"))
         records = self.list()
         self._ensure_unique(records, record)
@@ -44,6 +54,7 @@ class TeacherAssignmentService:
         return record
 
     def update(self, assignment_id: str, values: Mapping[str, object]) -> dict[str, Any]:
+        self._authorization.require(ACADEMIC_SETUP_WRITE)
         records = self.list()
         index = find_index_by_id(records, "assignment_id", assignment_id)
         if index is None:
@@ -55,6 +66,7 @@ class TeacherAssignmentService:
         return record
 
     def delete(self, assignment_id: str) -> dict[str, Any]:
+        self._authorization.require(ACADEMIC_SETUP_WRITE)
         records = self.list()
         index = find_index_by_id(records, "assignment_id", assignment_id)
         if index is None:

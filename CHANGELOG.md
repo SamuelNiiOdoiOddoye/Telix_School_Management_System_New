@@ -8,6 +8,12 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
 
 ### Added
 
+- Fixed V1 local roles (`SUPER_ADMIN`, `ADMIN`, `TEACHER`,
+  `FINANCE_OFFICER`, and `STUDENT`) with service-layer capability checks,
+  role-specific student fields, and linked-student scoping for student reads.
+- Repeatable development-only demo bootstrap with hidden, individually entered
+  passwords and a synthetic student record; existing accounts are never reset.
+- Role-scoped dashboard/report pages and service authorization regression tests.
 - Academic-period score summaries in the Academic Records workflow, using the
   recorded year/term labels and stable catalog IDs for understandable history.
 - Teacher-to-subject assignments by academic year, including validation,
@@ -50,6 +56,10 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
 
 ### Changed
 
+- The authenticated desktop workspace now opens a role-specific set of tabs;
+  the session uses the persisted account role rather than a login role selector.
+- Dashboard and report refreshes avoid reading unauthorized domains and expose
+  finance salary totals without returning teacher personnel records.
 - Registered an Attendance tab with record, update, delete, filter, and summary
   interactions.
 - Registered an Assessments tab with grading-profile setup, score entry,
@@ -70,6 +80,9 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
 
 ### Testing
 
+- Added coverage for supported-role authentication, student account linkage,
+  account bootstrap idempotency, service authorization, and cross-student data
+  isolation.
 - Added teacher-assignment service coverage, assignment UI smoke coverage,
   malformed assignment-storage validation, and academic-history regression
   tests.
@@ -82,6 +95,11 @@ Every change to this project is recorded here, newest first. Format: [Keep a Cha
 
 ### Security
 
+- Rejects unknown persisted roles and student accounts without a linked record.
+- Student logins fail safely when their linked student record is no longer
+  present; demo setup refuses to bind an account to a non-synthetic ID collision.
+- Enforces student ownership in service queries and narrows teacher/finance/
+  student data returned by student reads.
 - Added an ignore rule for the local attendance JSON file.
 - Added ignore rules for local payment and expense JSON files.
 

@@ -286,7 +286,7 @@ class FinanceTab(BaseTab):
     def refresh(self) -> None:
         try:
             students = self.context.services.students.list()
-            teachers = self.context.services.teachers.list()
+            teachers = self.context.services.teachers.salary_records()
             ledger = self.context.services.finance
             summary = ledger.summary(students, teachers)
             for key, variable in self.values.items():

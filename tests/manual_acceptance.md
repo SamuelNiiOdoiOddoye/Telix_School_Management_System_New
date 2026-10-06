@@ -6,6 +6,26 @@ creates backups on writes. Do not test against a live data directory.
 
 ## Current V1 workflows
 
+- [ ] In a disposable copy, run `python -m telix.bootstrap_demo_accounts`.
+      Enter a distinct password and confirmation at each hidden prompt. Confirm
+      that no password is echoed, five reserved `.invalid` accounts are created,
+      and only the synthetic `DEMO-STU-001` record is added.
+- [ ] Run the demo bootstrap a second time. Confirm it skips existing accounts
+      without prompting for or changing their passwords or overwriting the
+      synthetic student record.
+- [ ] Log in separately as each demo role. Confirm the role comes from the
+      account, not a login selector, and each role sees only its allowed tabs.
+- [ ] As Teacher, confirm student details omit family/medical contact data and
+      student-management controls are disabled; confirm direct writes are
+      rejected by services.
+- [ ] As Finance Officer, confirm only financial reports/finance workflows are
+      shown and teacher personal details and academic records are inaccessible.
+- [ ] As Student, confirm the Reports view includes only the linked
+      `DEMO-STU-001` data. Attempt to query another student ID through the
+      service boundary and confirm access is rejected or returns no matching
+      record. Confirm finance, teacher, and school-wide reports are inaccessible.
+- [ ] Log out from each role and confirm the session is cleared and login is
+      shown before the protected workspace.
 - [ ] In a disposable checkout with no `users.json`, run
       `python -m telix.bootstrap_admin`. Enter the assigned Super Admin name,
       email, and phone; enter a unique password of at least 12 characters at

@@ -136,18 +136,28 @@ class AuthenticationServiceTests(unittest.TestCase):
         self.assertFalse(session.authenticated)
         self.assertIsNone(session.user)
 
-    def test_session_rejects_roles_outside_the_v1_super_admin(self) -> None:
+    def test_session_rejects_unknown_roles_and_unlinked_students(self) -> None:
         from telix.authentication.service import AuthenticatedUser
 
         session = UserSession()
-        with self.assertRaisesRegex(ValueError, "Only a Super Admin"):
+        with self.assertRaisesRegex(ValueError, "valid V1 account"):
             session.start(
                 AuthenticatedUser(
                     user_id="USR-OTHER",
                     name="Other",
                     email="other@example.invalid",
                     phone="+12025550124",
-                    role="TEACHER",
+                    role="UNKNOWN",
+                )
+            )
+        with self.assertRaisesRegex(ValueError, "valid V1 account"):
+            session.start(
+                AuthenticatedUser(
+                    user_id="USR-STUDENT",
+                    name="Student",
+                    email="student@example.invalid",
+                    phone="+12025550125",
+                    role="STUDENT",
                 )
             )
         self.assertFalse(session.authenticated)
@@ -157,6 +167,24 @@ class AuthenticationServiceTests(unittest.TestCase):
 
         with self.assertRaisesRegex(StorageError, "invalid account record"):
             self.authentication.has_super_admin()
+
+    def test_unknown_persisted_role_is_rejected(self) -> None:
+        self.repository._store.save(
+            [
+                {
+                    "user_id": "USR-UNKNOWN",
+                    "name": "Unknown",
+                    "email": "unknown@example.invalid",
+                    "phone": "+12025550123",
+                    "password_hash": hash_password(secrets.token_urlsafe(24)),
+                    "role": "OWNER",
+                    "active": True,
+                }
+            ]
+        )
+
+        with self.assertRaisesRegex(StorageError, "invalid role"):
+            self.authentication.authenticate("unknown@example.invalid", "not relevant")
 
 
 if __name__ == "__main__":

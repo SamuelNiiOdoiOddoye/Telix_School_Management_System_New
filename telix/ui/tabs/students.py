@@ -46,7 +46,17 @@ class StudentsTab(BaseTab):
         self.search_id = tk.StringVar()
         self.class_filter = tk.StringVar()
         self.selected_id: str | None = None
+        self.table_columns: tuple[str, ...]
+        self.table_widths: tuple[int, ...]
+        if self.context.services.authorization.allows("students.write"):
+            self.table_columns = TABLE_COLUMNS
+            self.table_widths = TABLE_WIDTHS
+        else:
+            self.table_columns = ("student_id", "name", "class_name", "status")
+            self.table_widths = (140, 220, 120, 120)
         self._build_form()
+        if not self.context.services.authorization.allows("students.write"):
+            self._disable_form_controls()
         self._build_tools()
         self._build_table()
 
@@ -70,6 +80,16 @@ class StudentsTab(BaseTab):
             ),
             row=rows,
         )
+        self.form = form
+
+    def _disable_form_controls(self) -> None:
+        def disable_children(parent: tk.Misc) -> None:
+            for child in parent.winfo_children():
+                if isinstance(child, (ttk.Button, ttk.Combobox, ttk.Entry)):
+                    child.state(["disabled"])
+                disable_children(child)
+
+        disable_children(self.form)
 
     def _build_tools(self) -> None:
         tools = ttk.Frame(self.frame)
@@ -100,7 +120,7 @@ class StudentsTab(BaseTab):
     def _build_table(self) -> None:
         tree_frame = ttk.Frame(self.frame)
         tree_frame.pack(fill="both", expand=True)
-        self.tree = create_tree(tree_frame, TABLE_COLUMNS, TABLE_WIDTHS)
+        self.tree = create_tree(tree_frame, self.table_columns, self.table_widths)
         self.tree.bind("<<TreeviewSelect>>", self._on_row_selected)
 
     # --- button handlers ---------------------------------------------------
@@ -219,14 +239,11 @@ class StudentsTab(BaseTab):
             (
                 (
                     student["student_id"],
-                    (
-                        student["student_id"],
-                        student["name"],
-                        student["class_name"],
-                        student["status"],
-                        student["phone"],
-                        student["parent_name"],
-                        format_currency(as_amount(student["fees"])),
+                    tuple(
+                        format_currency(as_amount(student.get(field, "")))
+                        if field == "fees"
+                        else student.get(field, "")
+                        for field in self.table_columns
                     ),
                 )
                 for student in students

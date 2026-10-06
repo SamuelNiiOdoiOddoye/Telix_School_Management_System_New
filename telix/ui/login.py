@@ -1,4 +1,4 @@
-"""Login screen for the local V1 Super Admin session."""
+"""Login screen for local V1 accounts."""
 
 from __future__ import annotations
 
@@ -35,9 +35,11 @@ class LoginScreen:
         ttk.Label(card, text="TELIX", style="Title.TLabel").grid(
             row=0, column=0, columnspan=2, sticky="w"
         )
-        ttk.Label(card, text="School Management System", style="Subtitle.TLabel").grid(
-            row=1, column=0, columnspan=2, sticky="w", pady=(0, 22)
-        )
+        ttk.Label(
+            card,
+            text="School Management System · access follows your account role",
+            style="Subtitle.TLabel",
+        ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 22))
         ttk.Label(card, text="Email").grid(row=2, column=0, sticky="w", pady=6)
         email_entry = ttk.Entry(card, textvariable=self.email, width=36)
         email_entry.grid(row=2, column=1, sticky="ew", padx=(12, 0), pady=6)
